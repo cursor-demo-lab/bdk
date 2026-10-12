@@ -1,0 +1,15 @@
+[tasks.start]
+description = "Serve factory-desk locally with dev defaults."
+run = "npm start"
+
+[tasks.test]
+description = "Run factory-desk unit tests."
+run = "npm test"
+
+[tasks.check]
+description = "Typecheck factory-desk."
+run = "npm run check"
+
+[tasks.validate]
+description = "Validate the factory-desk agent."
+run = "npm run validate"

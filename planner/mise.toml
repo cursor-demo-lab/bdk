@@ -1,0 +1,15 @@
+[tasks.start]
+description = "Serve planner locally with dev defaults."
+run = "npm start"
+
+[tasks.test]
+description = "Run planner unit tests."
+run = "npm test"
+
+[tasks.check]
+description = "Typecheck planner."
+run = "npm run check"
+
+[tasks.validate]
+description = "Validate the planner agent."
+run = "npm run validate"

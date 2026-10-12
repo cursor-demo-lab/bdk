@@ -1,0 +1,41 @@
+# scripts/*.test.mjs import agent .ts sources; Node strips types by default from 22.18.
+[tools]
+node = "22.18"
+
+[tasks.doctor]
+description = "Run the factory preflight doctor."
+run = ["node scripts/doctor.mjs"]
+
+[tasks.test]
+description = "Run the scripts' tests and unit tests in factory-desk, planner, factory-worker, triage-jira, pr-autofixer, and security-reviewer."
+run = [
+  "node --experimental-strip-types --test scripts/*.test.mjs",
+  "npm test --prefix factory-desk",
+  "npm test --prefix planner",
+  "npm test --prefix factory-worker",
+  "npm test --prefix triage-jira",
+  "npm test --prefix pr-autofixer",
+  "npm test --prefix security-reviewer",
+]
+
+[tasks.check]
+description = "Typecheck factory-desk, planner, factory-worker, triage-jira, pr-autofixer, and security-reviewer."
+run = [
+  "npm run check --prefix factory-desk",
+  "npm run check --prefix planner",
+  "npm run check --prefix factory-worker",
+  "npm run check --prefix triage-jira",
+  "npm run check --prefix pr-autofixer",
+  "npm run check --prefix security-reviewer",
+]
+
+[tasks.validate]
+description = "Validate factory-desk, planner, factory-worker, triage-jira, pr-autofixer, and security-reviewer."
+run = [
+  "npm run validate --prefix factory-desk",
+  "npm run validate --prefix planner",
+  "npm run validate --prefix factory-worker",
+  "npm run validate --prefix triage-jira",
+  "npm run validate --prefix pr-autofixer",
+  "npm run validate --prefix security-reviewer",
+]

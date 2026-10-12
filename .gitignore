@@ -1,0 +1,11 @@
+node_modules/
+.env.local
+.DS_Store
+# Operator paste of JIRA_WEBHOOK_SECRET for Automation headers.
+# Never commit the file or the value.
+.jira-webhook-secret.paste
+# Serve state stays local. The directory negation alone does not
+# re-include files, because **/.agent-serve/** still matches them.
+**/.agent-serve/**
+!**/.agent-serve/slack/
+!**/.agent-serve/slack/**

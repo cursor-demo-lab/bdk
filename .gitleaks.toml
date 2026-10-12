@@ -1,0 +1,10 @@
+# Allowlist for known false positives. No real secrets are excepted.
+# Gitleaks 8.24 still honors the singular [allowlist] table for regexes.
+title = "software-factory"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Atlassian Rovo MCP tool name, not an API token"
+regexes = ["searchJiraIssuesUsingJql"]

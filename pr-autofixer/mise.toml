@@ -1,0 +1,15 @@
+[tasks.start]
+description = "Serve pr-autofixer locally with dev defaults."
+run = "npm start"
+
+[tasks.test]
+description = "Run pr-autofixer unit tests."
+run = "npm test"
+
+[tasks.check]
+description = "Typecheck pr-autofixer."
+run = "npm run check"
+
+[tasks.validate]
+description = "Validate the pr-autofixer agent."
+run = "npm run validate"

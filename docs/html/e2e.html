@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Software factory, the workflow end to end</title>
+  <meta name="description" content="Swimlane of one ticket through the Slack, Jira, and GitHub software factory: who acts, which integration carries each step, where the context is stored, and where a person is in the loop.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23f54e00'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --panel: #fffdf9;
+      --wash: #f0efe8;
+      --border: #e7e5dd;
+      --border-2: #d4d1c6;
+      --text: #26251e;
+      --soft: #5f5e54;
+      --muted: #6f6d62;
+      --accent: #f54e00;
+      --accent-deep: #c23d00;
+      --accent-soft: #fbe7dc;
+      --accent-line: #f0b08a;
+      --agent: #1d4ed8;
+      --agent-soft: #e8efff;
+      --system: #047857;
+      --system-soft: #e3f6ee;
+      --store: #6d28d9;
+      --store-soft: #efe9fe;
+      --sans: -apple-system, "SF Pro Display", "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: "SF Mono", "Berkeley Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 16px; line-height: 1.5; }
+    .wrap { max-width: none; margin: 0; padding: 0 28px; }
+    a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--text); }
+    code { font-family: var(--mono); font-size: 0.88em; background: var(--wash); padding: 0.08em 0.35em; border-radius: 4px; }
+
+    header.site { padding: 36px 0 8px; }
+    .eyebrow { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+    h1 { margin: 0 0 12px; font-size: clamp(32px, 4vw, 46px); line-height: 1.05; letter-spacing: -0.035em; font-weight: 640; }
+    h2 { margin: 40px 0 8px; font-size: 22px; letter-spacing: -0.025em; font-weight: 640; }
+    .dek { margin: 0 0 12px; max-width: none; font-size: 17px; line-height: 1.5; color: var(--soft); }
+    .dek:last-of-type { margin-bottom: 0; }
+    .lead { margin: 0; }
+    .meta { margin: 16px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; max-width: none; }
+    .facts { display: flex; flex-wrap: wrap; gap: 8px 10px; margin: 16px 0 0; padding: 0; list-style: none; }
+    .facts li { margin: 0; padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--soft); font-size: 13px; line-height: 1.4; }
+    .sources { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 14px; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--soft); }
+    .legend li { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border-2); background: var(--panel); flex: none; }
+    .swatch.human { background: var(--accent-soft); border-color: var(--accent); }
+    .swatch.agent { background: var(--agent-soft); border: 2px solid var(--agent); }
+    .swatch.system { background: var(--system-soft); border-color: var(--system); }
+    .swatch.setting { border-style: dashed; background: var(--wash); }
+    .swatch.store { background: var(--store-soft); border-color: var(--store); }
+    .swatch.gate { background: var(--accent); border-color: var(--accent); width: 22px; height: 10px; border-radius: 5px; }
+    .swatch.effect { border-radius: 999px; width: 22px; height: 12px; }
+
+    .phase { margin: 22px 0 0; }
+    .phase h3 { margin: 0 0 2px; font-size: 17px; letter-spacing: -0.02em; font-weight: 650; }
+    .phase .kicker { margin: 0 0 4px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+    .phase p.lede { margin: 0 0 10px; color: var(--soft); max-width: none; font-size: 14.5px; }
+    .board { width: max-content; max-width: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow-x: auto; }
+    .board svg { display: block; }
+    .board text { font-family: var(--sans); }
+    .lane-band.odd { fill: rgba(240, 239, 232, 0.55); }
+    .lane-band.even { fill: transparent; }
+    .lane-line { stroke: var(--border); }
+    .lane-label { font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; fill: var(--muted); }
+    .lane-label.human { fill: var(--accent-deep); }
+    .lane-label.agent { fill: var(--agent); }
+    .lane-label.system { fill: var(--system); }
+    .lane-label.store { fill: var(--store); }
+    .node-box { rx: 9; ry: 9; stroke-width: 1.25; }
+    .k-human .node-box { fill: var(--accent-soft); stroke: var(--accent-line); }
+    .k-agent .node-box { fill: var(--agent-soft); stroke: var(--agent); stroke-width: 1.75; }
+    .k-system .node-box { fill: var(--system-soft); stroke: var(--system); }
+    .k-setting .node-box { fill: var(--wash); stroke: var(--border-2); stroke-dasharray: 5 4; }
+    .k-store .node-box { fill: var(--store-soft); stroke: var(--store); }
+    .node-title { font-size: 11.5px; font-weight: 650; fill: var(--text); }
+    .k-gate .node-box { stroke: var(--accent); stroke-width: 2.25; }
+    .gate-tab { fill: var(--accent); }
+    .gate-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.08em; fill: #fff; }
+    .node-n { font-size: 10px; font-weight: 700; fill: #fff; }
+    .node-badge { fill: #8a877c; }
+    .k-human .node-badge { fill: var(--accent); }
+    .k-agent .node-badge { fill: var(--agent); }
+    .k-system .node-badge { fill: var(--system); }
+    .k-setting .node-badge { fill: #8a877c; }
+    .gate-mark { fill: var(--accent); stroke: #fff; stroke-width: 1.5; }
+    .gate-text { font-size: 9px; font-weight: 700; fill: #fff; }
+    .effect-box { rx: 999; ry: 999; stroke-width: 1.1; }
+    .effect-text { font-size: 10.5px; fill: var(--text); }
+    .k-human .effect-box { fill: #fff; stroke: var(--accent-line); }
+    .k-agent .effect-box { fill: #fff; stroke: var(--agent); }
+    .k-system .effect-box { fill: #fff; stroke: var(--system); }
+    .k-setting .effect-box { fill: #fff; stroke: var(--border-2); stroke-dasharray: 4 3; }
+    .k-store .effect-box { fill: var(--store-soft); stroke: var(--store); }
+    .k-store .effect-text { fill: var(--store); font-weight: 600; }
+    .flow { fill: none; stroke: #8a877c; stroke-width: 1.5; }
+    .flow.reply { stroke-dasharray: 4 4; }
+    .act { fill: none; stroke: #8a877c; stroke-width: 1.3; }
+    .act.store { stroke: var(--store); stroke-dasharray: 3 3; }
+    .head { fill: #8a877c; stroke: none; }
+    .head.store { fill: var(--store); }
+    .col-label { font-size: 10px; fill: var(--muted); }
+
+    .hint { margin: 10px 0 0; font-size: 14px; color: var(--soft); max-width: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0 0; }
+    th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+    td.n { font-family: var(--mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+    .who { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border-2); background: var(--panel); white-space: nowrap; }
+    .who.human { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-deep); }
+    .who.agent { background: var(--agent-soft); border-color: var(--agent); color: var(--agent); }
+    .who.system { background: var(--system-soft); border-color: var(--system); color: var(--system); }
+    .who.setting { border-style: dashed; background: var(--wash); color: var(--soft); }
+    .who.store { background: var(--store-soft); border-color: var(--store); color: var(--store); }
+    .mech { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 650; letter-spacing: 0.04em; white-space: nowrap; }
+    .mech.bdk { background: var(--agent-soft); color: var(--agent); border: 1px solid var(--agent); }
+    .mech.cursor-product { background: #f0f0f0; color: #444; border: 1px solid #bbb; }
+    .mech.jira-auto { background: #e6f0ff; color: #1a5fb4; border: 1px solid #9cc0f0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 14px 0 0; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 14px; }
+    .card strong { display: block; font-size: 15px; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .card .sub { display: block; color: var(--soft); font-size: 13.5px; line-height: 1.4; }
+    .card.gate { border-color: var(--border-2); }
+    .pending { font-weight: 650; color: var(--accent-deep); }
+    pre.code { margin: 10px 0 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+    pre.code code { background: none; padding: 0; white-space: pre; }
+    .note { display: block; margin: 4px 0 0; color: var(--soft); font-size: 13px; line-height: 1.4; }
+    footer { margin: 40px 0 48px; color: var(--muted); font-size: 13px; }
+
+    @media print {
+      body { border-top: none; background: #fff; }
+      .board { overflow: visible; border: none; }
+      .board svg { width: 100% !important; height: auto !important; }
+      .hint { display: none; }
+      .phase { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <p class="eyebrow">APJ GTM · Software factory</p>
+      <h1>One ticket, end to end</h1>
+      <div class="lead">
+        <p class="dek">Alice stays in Slack from filing to merge. She opens a request with <code>@Factory</code> in <code>#mars-eng-intake</code>. The desk asks Jev to triage it before anything is filed, posts a filing prompt, and waits for her ✅ (file it) or ❌ (drop it) reaction on that prompt. Six hosted agents run, one per stage. Hosted, none of them calls another. Each stage writes its artifact to the Jira ticket, then moves the ticket. The next agent wakes on the status it moved to. Statuses are <code>To Do → Triaged → Planned → Approved → In Progress → In Review → Done</code>.</p>
+        <p class="dek">The thread then reads, in order: the Filed post, Triaged, the plan post, her ✅ on the plan, exactly one In Progress post with the agent URL, the marsbank pull request (<code>cursor-demo-lab/marsbank</code>), review updates whose gate lines always run 🐛 Bugbot, 🔒 security review, 🏗️ CI, 📡 change review, 🔧 autofix, and In Review. A ✅ on the plan moves the ticket Planned → Approved through host code (<code>approvePlanned</code>) and records <code>approved-in-slack/&lt;KEY&gt;</code>, so the Approved webhook posts nothing and the next beat is In Progress. A ❌ on the plan leaves it Planned with a <code>Denied in Slack</code> comment. A card dragged to Approved on the board still gets an Approved line, because it has no Slack-approval record.</p>
+        <p class="dek">There are no Slack cards or buttons. The gates are ✅ / ❌ reactions: July 0.2.11 delivers <code>reaction_added</code> on hosted v2, so the Slack app needs the <code>reactions:read</code> scope and the <code>reaction_added</code> event. Only a reaction on a post the desk recorded (the filing prompt, the plan post) counts, and only from the requester or bound filer; a 👍 does nothing. Typed replies (<code>approve file</code>, <code>approve</code>) still do the same thing. Plain replies in a factory thread need no <code>@Factory</code> mention; only a new request starts with one. Outbound, the desk keeps one status reaction on the filer's original message so <code>#mars-eng-intake</code> shows where each request is: 👀 filed / Triaged → ⏳ planner running → 📝 Planned → 🛠️ Approved / In Progress → 🔍 In Review → ✅ Done, or ❓ when a person has to answer and ⚠️ when triage, the planner, or a launch stopped. A late webhook with an older Jira changelog id changes nothing. A Jira-filed ticket and a DM get no reactions. <code>factory-worker</code> starts a cloud agent and moves the ticket to In Progress. The agent opens the pull request; the worker comments <code>Pull request: &lt;url&gt;</code> once, then moves the ticket to In Review. If a check fails, the fixer drives a cloud run until CI passes. A person reviews and merges, never auto-merge, and the worker moves the ticket to Done. A ticket that needs information stays Triaged; a plain reply in the thread is added as <code>Detail from Slack:</code> and sent back to the planner.</p>
+        <p class="dek">Every Slack post covers only the current step: what just happened, or the one action the reader takes now (a <code>Next:</code> line only for that), never what comes later. The Filed post is one post: the ticket link with the KEY as link text and the triage it was filed with and who made it (<code>Bug, low severity (triaged by Jev)</code>); a desk-filed ticket gets no separate Triaged line for that verdict. The plan post is phone-sized: summary, approach, areas, tests, risk, size, then a "Full plan and worker brief" link to the Jira <code>Plan:</code> comment and one line asking for the decision on this plan: <code>React ✅ to start the build or ❌ to stop, or reply approve / deny KEY.</code> In a channel the desk does not watch, where a plain reply never reaches it, both asks are reactions only: <code>React ✅ to file or ❌ to drop.</code> and <code>React ✅ to start the build or ❌ to stop.</code> The filing writes <code>Slack thread: &lt;permalink&gt;</code> into the Jira description, and the planner's brief asks for <code>Jira:</code> then <code>Slack:</code> as the implement PR's first two description lines, under a <code>KEY: &lt;what&gt;</code> title.</p>
+        <p class="dek">This page follows the code on main (<code>factory-desk/agent/lib/reaction-approval.ts</code>, <code>intake-triage.ts</code>, <code>review-update.ts</code>). Older hop-by-hop notes are in <a href="../verification.md">verification.md</a>. Deploy steps: <a href="../factory-deployment.md">factory-deployment.md</a>. Jira rules: <a href="../jira-automation.md">jira-automation.md</a>.</p>
+        <p class="dek">Pull request quality gates mix Cursor product features (Bugbot, change-monitor) with factory BDK agents (<code>factory-security-reviewer</code>, <code>factory-pr-autofixer</code>) and Jira Automation rules. Each mechanism appears on a different GitHub surface — Checks tab, Reviews, or Conversation — so verifying a live end-to-end requires checking all three. This page tags each integration <span class="mech bdk">BDK</span>, <span class="mech cursor-product">Cursor product</span>, or <span class="mech jira-auto">Jira Automation</span> so they are never conflated.</p>
+      </div>
+      <ul class="facts">
+        <li><code>@cursor/july@0.2.22</code></li>
+        <li>CLI <code>npx -p @cursor/july@0.2.22 agent-sdk</code></li>
+        <li>Cursor-managed hosting v2</li>
+        <li>Slugs: <code>factory-desk</code>, <code>factory-triage-jira</code>, <code>factory-planner</code>, <code>factory-worker</code>, <code>factory-pr-autofixer</code>, <code>factory-security-reviewer</code></li>
+        <li>Host model Auto (<code>auto-smart</code>, <code>optimize_for=balanced</code>) by default; <code>factory-desk</code> (and triage-jira's fallback turn) on <code>grok-4.6-fast</code>; Jev triages before filing</li>
+        <li>Sandbox <code>cursor-demo-lab/marsbank</code></li>
+        <li>Source <code>example-org/demo-repo</code></li>
+        <li>Jira <code>TLSSN</code> on <code><JIRA_SITE>.atlassian.net</code></li>
+        <li>Intake <code>#mars-eng-intake</code> (<code>C0EXAMPLE1</code>)</li>
+        <li>Jira status as the bus · hosted, no agent-to-agent calls</li>
+        <li>Planner and worker deploys pass <code>--cursor-events-repo cursor-demo-lab/marsbank</code> (fixer and reviewer too)</li>
+        <li>Local peer edges need <code>serve --dir .</code> with <code>FACTORY_INPROCESS_PEERS=1</code>; hosted they are stubs</li>
+      </ul>
+      <p class="meta">Check a run with <code>node scripts/e2e-drive.mjs</code>. Replay mode, the default, posts signed synthetic Jira events to each slug's route. Replay signs every route with the root <code>.env.local</code> <code>JIRA_WEBHOOK_SECRET</code>, so it works only while all four slugs hold that value. <code>--live</code> relies on the real TLSSN Automation rules and posts nothing.</p>
+      <p class="meta">The driver has no Slack step. It files the ticket and moves it to <code>Approved</code> through the Jira REST API, so the Slack filing, the ✅ reactions, and every desk post are not exercised, and it has no row for the worker's In Review and Done moves. With <code>FACTORY_E2E_GITHUB_TOKEN</code> unset, each GitHub write goes to one Cursor cloud agent, and the driver only reads GitHub to verify it. In that mode the <code>factory: drive</code> comment posts as <code>cursor[bot]</code>, which Cursor's hosted GitHub ingress drops, so the drive row cannot pass and a person must type it; <code>--cleanup</code> cannot close pull requests in that mode.</p>
+      <p class="meta">It prints one row per step, marked pass, pass (prior run), fail, blocked, unverified, or skipped, and exits 1 on any fail. A blocked row names the precondition it lacks. A pass (prior run) row re-read state from before this run: a Jira hop the ticket had finished, reused pull requests, or a review, fix, or drive start that predates the run; nothing was sent or written for it. The drive and red-check rows pass only on a comment or push by a login in <code>FACTORY_E2E_FIXER_LOGINS</code>, which has no default until the fixer's GitHub identity is confirmed. A push's login is the actor of the <code>push</code> or <code>pull_request</code> workflow run GitHub started for the commit, never the commit's author, so a commit with no such run never counts. The review row passes only on a <code>COMMENTED</code> review of the pull request head by a login in <code>FACTORY_E2E_REVIEWER_LOGINS</code> (default <code>cursor[bot]</code>) whose body opens with <code>## Security review</code> then <code>**Verdict:** CLEAN</code> or <code>FINDINGS</code>. At the timeout, activity only by a person, the driver, or a login outside the pin is fail (wrong actor); anything less certain leaves the row unverified. In cloud-agent mode the drive row does not exclude the driver's own login.</p>
+      <ul class="sources">
+        <li><a href="#apps">Applications and repos</a></li>
+        <li><a href="#auth">Integrations and auth</a></li>
+        <li><a href="#jira-rules">Jira Automation rules</a></li>
+        <li><a href="#automations">Automations as code</a></li>
+        <li><a href="#limits">Known limits</a></li>
+        <li><a href="index.html">Lane picture with walk</a></li>
+        <li><a href="../README.md">Docs index</a></li>
+        <li><a href="../event-driven-factory.md">Event-driven topology</a></li>
+        <li><a href="../amplitude-stages.md">Stages</a></li>
+        <li><a href="../plan.md">Plan</a></li>
+        <li><a href="../../scripts/e2e-drive.mjs">End-to-end driver</a></li>
+      </ul>
+      <ul class="legend">
+        <li><i class="swatch human" aria-hidden="true"></i> Person</li>
+        <li><i class="swatch agent" aria-hidden="true"></i> Factory agent</li>
+        <li><i class="swatch system" aria-hidden="true"></i> System</li>
+        <li><i class="swatch setting" aria-hidden="true"></i> Setting, not an agent</li>
+        <li><i class="swatch store" aria-hidden="true"></i> Factory state: artifacts and host.kv</li>
+        <li><i class="swatch effect" aria-hidden="true"></i> Result the step writes in that lane</li>
+        <li><i class="swatch gate" aria-hidden="true"></i> Human gate</li>
+        <li><span class="mech bdk">BDK</span> Hosted Agent SDK slug</li>
+        <li><span class="mech cursor-product">Cursor product</span> Cursor platform feature</li>
+        <li><span class="mech jira-auto">Jira Automation</span> Atlassian project rule</li>
+      </ul>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h2 id="swimlane">Swimlane, five phases</h2>
+    <p class="hint">Time runs left to right inside a phase and top to bottom across phases. A box is the actor. A pill in another lane is the result that step writes there, and a person can open it in that system afterwards. Lanes with no step in a phase are not drawn. Hover a box for the full step.</p>
+    <div id="phases"></div>
+
+    <h2>Where Alice has to act</h2>
+    <div class="grid" id="gates"></div>
+
+    <h2 id="steps-heading">Every step</h2>
+    <table id="steps-table" aria-labelledby="steps-heading">
+      <thead><tr><th>#</th><th>Who</th><th>What happens</th><th>Result</th><th>Integration</th><th>Factory state</th><th>Gate</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>Where the context is stored, and who reads it back</h2>
+    <table>
+      <thead><tr><th>Store</th><th>What it holds</th><th>Written by</th><th>Read back by</th></tr></thead>
+      <tbody>
+        <tr><td>Jira ticket</td><td>The status, which is the event: <code>To Do</code>, <code>Triaged</code>, <code>Planned</code>, <code>Approved</code>, <code>In Progress</code>, <code>In Review</code>, <code>Done</code>. The comments, which are the record and the payload the next stage reads. The <code>Triage:</code> comment (kind, severity, summary, next step, plus <code>Duplicate of:</code>, <code>Needs info:</code>, and <code>Reported by:</code> when set), and a <code>Triage: duplicate inbound &lt;KEY&gt;</code> comment on the original of a duplicate. A question, needs-info, or duplicate still moves To Do → Triaged and then stays Triaged: the planner's gate skips those verdicts. The <code>Plan:</code> comment, which states the problem, how the code works today, why it is that way as findings sorted into Preserve, Change, Avoid, and Risk, the chosen design and the candidates it was picked over, the steps, the tests, and the open questions. It ends with a <code>Brief:</code> section, which is the cloud agent's prompt. <code>Needs info: KEY</code> or <code>Plan stopped: KEY</code> when the planner does not move the ticket. <code>Detail from Slack: KEY</code> when a thread reply answers a Needs-info wait. The <code>Implementing: &lt;agent URL&gt;</code> comment. One <code>Pull request: &lt;url&gt;</code> comment before In Review; merge does not write a second. A <code>Denied in Slack by &lt;user&gt;</code> comment if Alice denies. Jira records every factory write as <code><OPERATOR_EMAIL></code>, the account that gave the Atlassian consents</td><td><code>factory-triage-jira</code> (<code>Triage:</code>, then <code>Triaged</code>), <code>factory-planner</code> (<code>Plan:</code>, then <code>Planned</code>; or <code>Needs info:</code> / <code>Plan stopped:</code> and stays <code>Triaged</code>), <code>factory-desk</code> (the issue, <code>Approved</code> on a ✅ on the plan, <code>Triaged</code> on a plan or replan, through <code>To Do</code> if the ticket is already <code>Triaged</code>, <code>Detail from Slack:</code>, the deny comment), <code>factory-worker</code> (<code>Implementing:</code>, then <code>In Progress</code>; <code>Pull request:</code> then <code>In Review</code> when its implement pull request opens; <code>Done</code> when a person merges it), anyone who moves the card on the board</td><td>Alice, before she replies <code>approve</code>. The planner reads the verdict in <code>Triage:</code> and treats a later <code>Detail from Slack:</code> as the answer to a needs-info verdict. The worker reads the <code>Brief:</code>. The desk reads the <code>Implementing:</code> URL and the latest <code>Pull request:</code> comment. The planner's <code>read_ticket</code> reads the ticket when it plans. Anyone who opens the ticket or the board later</td></tr>
+        <tr><td>Planner artifacts</td><td>One <code>plan</code> record per ticket, keyed <code>plan:&lt;KEY&gt;</code>. It holds the whole plan, the brief, the comment text, and whether the ticket comment was posted. On a local serve it is readable at <code>/planner/v1/artifacts?kind=plan</code>. The hosted v2 alias does not serve that path. No other slug reads this row. The worker reads the <code>Brief:</code> from the <code>Plan:</code> comment on the ticket</td><td><code>record_plan</code></td><td>The planner's <code>get_plan</code> before it plans. Operators over HTTP on a local serve. A new plan replaces the row, so the record is always the latest plan</td></tr>
+        <tr><td>Slack thread</td><td>The <code>@Factory</code> request, the filing prompt with Jev's triage, the requester's ✅ / ❌ on it (or a typed <code>approve file</code> / <code>deny file</code>), the Filed post, the Triaged line (Jira-filed tickets), the plan post and the filer's ✅ / ❌ on it (or a plain <code>approve</code>, <code>replan KEY</code>), exactly one In Progress post with the agent URL, <code>KEY review update on &lt;sha&gt;</code> lines (🐛 🔒 🏗️ 📡 🔧, in that order), In Review with <code>owner/repo#N</code>, and Done. A Slack approval gets no Approved line; a board drag to Approved does. A Needs-info line marks the thread awaiting a plain reply, which the desk adds to the ticket and sends back to the planner. The thread is the desk's session for the ticket, and <code>host.kv</code> maps the ticket key to the thread. A ticket filed in Jira gets a root post in <code>#mars-eng-intake</code> (<code>FACTORY_DESK_INTAKE_CHANNEL</code>) and the same replies under it</td><td><code>factory-desk</code></td><td>Alice and her team. The desk itself on every follow-up in the thread. Anyone may answer a Needs-info wait; only the filer's reactions and replies approve, deny, or replan</td></tr>
+        <tr><td>Sandbox checkout (local clone)</td><td>The code of <code>cursor-demo-lab/marsbank</code> and its git history. Read only. Local serve only</td><td>nobody in the factory</td><td><code>factory-planner</code>: <code>read</code>, <code>grep</code>, <code>glob</code>, <code>ls</code>, <code>git_history</code></td></tr>
+        <tr><td>GitHub</td><td>The pull request whose description restates the plan and its test results. Three distinct PR-side integrations act on it: (1) Bugbot <span class="mech cursor-product">Cursor product</span> posts a Checks run named <code>Cursor Bugbot</code> on the Checks tab — no Conversation comment when clean; (2) the <code>## Security review</code> <span class="mech bdk">BDK</span> is a <code>COMMENT</code> review from <code>cursor[bot]</code> with <code>**Verdict:** CLEAN|FINDINGS|INCOMPLETE</code>, visible in Reviews and Conversation; (3) change-monitor <span class="mech cursor-product">Cursor product</span> maintains a sticky issue comment in Conversation with <code>cursor:sticky:change-monitor-plan</code> HTML comment markers and <code>Mention @change-monitor</code> text. Also: any <code>factory: drive</code> comment and the pushed fixes</td><td>cloud agent, Bugbot (Cursor product), <code>factory-security-reviewer</code> (BDK), change-monitor (Cursor product), a person (<code>factory: drive</code>, the merge), <code>factory-pr-autofixer</code> (BDK)</td><td>The reviewer. <code>factory-pr-autofixer</code> on a <code>factory: drive</code> comment by a person and on every event for a driven pull request. <code>factory-worker</code> reads only the <code>pull_request</code> event (branch, title, base, merged, who merged, <code>auto_merge</code>) and writes nothing to GitHub</td></tr>
+        <tr><td><code>host.kv</code></td><td>Each slug has its own, with no compare-and-set: every claim is read then put, or a lease that also reads back, so two racing deliveries can both claim. Triage keeps nothing here. For the planner, <code>plan/&lt;KEY&gt;:Triaged:&lt;changelog.id&gt;</code> lasts one transition, so a replan passes and a redelivery does not. It is <code>pending</code> until the session starts, then <code>started</code> with the session id. The planner's legacy comment path, local only, claims <code>plan-claimed/&lt;KEY&gt;</code>. For the desk, <code>ticket/&lt;KEY&gt;</code> holds the Slack thread that filed the ticket; <code>announced/&lt;KEY&gt;:&lt;status&gt;:&lt;changelog.id&gt;</code> is claimed before each post; <code>approved-in-slack/&lt;KEY&gt;</code> silences the Approved webhook for 10 minutes after a Slack approval; <code>approve-command/&lt;channel&gt;:&lt;ts&gt;</code> is the per-message host-approve lease; <code>awaiting-info/&lt;channel&gt;:&lt;ts&gt;</code> marks a Needs-info or triage-needs-info thread; <code>thread-detail/&lt;channel&gt;:&lt;ts&gt;</code> is the per-reply lease. For the worker, <code>implement/&lt;KEY&gt;</code> lasts for the ticket. It is <code>pending</code> until the launch returns, then <code>launched</code> with the agent id, the URL, and the <code>commented</code> and <code>moved</code> flags. A <code>pending</code> planner or worker claim older than 10 minutes is taken over with a put and retried. The worker's retry relies on the first send carrying <code>idempotencyKey</code> <code>implement/&lt;KEY&gt;</code>, whose dedupe is unverified. The worker also claims <code>pr-status/&lt;KEY&gt;/&lt;in_review|done&gt;/owner/repo#N</code> before each move from a pull request event. It becomes <code>moved</code> once the ticket is in the target status and is never released, so a redelivery or a later push moves nothing; any other outcome releases it. For the fixer, <code>webhook-buffer</code> holds events for the 3 second debounce, <code>auto-drive:owner/repo#N</code> is the per-pull-request claim for a drive (retaken with a put after 10 minutes with no drive bound), and <code>affinity/owner/repo#N</code> binds a driven pull request to its cloud agent. For the security reviewer, <code>reviewed/owner/repo#N</code> holds the last reviewed base and head</td><td><code>factory-planner</code>, <code>factory-desk</code> (<code>file_ticket</code>, host approve, thread-detail, and the Triaged, Planned, Approved, In Progress, In Review, and Done announcements called from its Jira channel), <code>factory-worker</code> (its Jira and GitHub channels), <code>factory-pr-autofixer</code> (its GitHub channel for the buffer and claim, the <code>agent.bound</code> hook for affinity), <code>factory-security-reviewer</code> (its GitHub hooks)</td><td>Host code only, never a model. Each slug reads only its own keys. The desk reads the thread key before it posts, and skips the Approved line when <code>approved-in-slack/&lt;KEY&gt;</code> is fresh. The worker reads <code>implement/&lt;KEY&gt;</code> on a later <code>Approved</code>. It re-posts a missing <code>Implementing:</code> comment, and moves the ticket to <code>In Progress</code> when <code>moved</code> is false and the ticket is still <code>Approved</code>. On a pull request event it needs <code>implement/&lt;KEY&gt;</code> to be <code>launched</code>, so only a ticket it launched moves. <code>factory-pr-autofixer</code> reads its buffer, its claim, and its binding</td></tr>
+        <tr><td>Cursor cloud</td><td>The launched agents' conversations and branches</td><td>cloud agents on <code>cursor-demo-lab/marsbank</code>, launched by <code>factory-worker</code> (<code>@cursor/sdk</code>) and <code>factory-pr-autofixer</code> (a July cloud-runtime session)</td><td>Anyone with the agent URL. The worker comments it on the ticket, and the desk posts it in the thread</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="apps">Applications and repos</h2>
+    <p class="hint">One row per agent. Source for all six is <code>example-org/demo-repo</code> under <code></code>, deployed from a pushed ref of <code>main</code>. The planner, the worker, the fixer, and the reviewer each hold a GitHub channel on <code>cursor-demo-lab/marsbank</code>, so each deploy of those four passes <code>--cursor-events-repo cursor-demo-lab/marsbank</code>. Live evidence per agent, with dates, is in <a href="../verification.md">verification.md</a>.</p>
+    <table>
+      <thead><tr><th>Agent</th><th>Hosted v2 slug</th><th>Source path</th><th>Repo it acts on</th><th>Jira project</th><th>Channels</th></tr></thead>
+      <tbody>
+        <tr><td><span class="who agent">factory-desk</span></td><td><code>factory-desk</code></td><td><code>factory-desk</code></td><td><code>cursor-demo-lab/marsbank</code>: <code>pull_request</code>, <code>check_suite</code> / <code>workflow_run</code> completed, <code>pull_request_review</code> (<code>--cursor-events-repo</code>, <code>FACTORY_REPOS</code>), read only, for review updates</td><td><code>TLSSN</code> (<code>file_ticket</code>, its Jira channel)</td><td><code>slack</code> (hosted Events API inbound: <code>app_mention</code> + <code>message</code> only — mentions, DMs, and posts in <code>#mars-eng-intake</code>; plus <code>reaction_added</code> for ✅ / ❌ on the filing prompt and plan post), <code>jira</code> (<code>/v1/channels/jira/</code>), <code>github</code> (read, review updates)</td></tr>
+        <tr><td><span class="who agent">triage-jira</span></td><td><code>factory-triage-jira</code></td><td><code>triage-jira</code></td><td>none</td><td><code>TLSSN</code>, by the Automation rule's project scope only</td><td><code>webhook</code> (<code>/v1/channels/webhook/</code>), <code>queue</code> (loopback helper <code>/v1/channels/queue/issue</code>)</td></tr>
+        <tr><td><span class="who agent">planner</span></td><td><code>factory-planner</code></td><td><code>planner</code></td><td><code>cursor-demo-lab/marsbank</code>, read only: hosted through its GitHub channel's pass-through (<code>--cursor-events-repo</code>), locally from a clone</td><td><code>TLSSN</code></td><td><code>webhook</code> (<code>/v1/channels/webhook/</code>), <code>github</code> (read, no events), <code>plan</code> (loopback helper <code>/v1/channels/plan/issue</code>)</td></tr>
+        <tr><td><span class="who agent">factory-worker</span></td><td><code>factory-worker</code></td><td><code>factory-worker</code></td><td><code>cursor-demo-lab/marsbank</code>: the launch target (<code>FACTORY_SANDBOX_REPO</code>), and <code>pull_request</code> events on it (<code>--cursor-events-repo</code>), read only</td><td><code>TLSSN</code></td><td><code>jira</code> (<code>/v1/channels/jira/</code>), <code>github</code> (read, <code>pull_request</code> only: In Review and Done)</td></tr>
+        <tr><td><span class="who agent">pr-autofixer</span></td><td><code>factory-pr-autofixer</code></td><td><code>pr-autofixer</code></td><td><code>cursor-demo-lab/marsbank</code> (subscribed with <code>--cursor-events-repo</code>)</td><td><code>TLSSN</code>, only as the key prefix (branch, or title on a <code>cursor[bot]</code> PR) that starts an automatic drive</td><td><code>github</code>, <code>drive</code> (loopback helper <code>/v1/channels/drive</code>)</td></tr>
+        <tr><td><span class="who agent">security-reviewer</span></td><td><code>factory-security-reviewer</code></td><td><code>security-reviewer</code></td><td><code>cursor-demo-lab/marsbank</code> (subscribed with <code>--cursor-events-repo</code>)</td><td>none</td><td><code>github</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="auth">Integrations and auth</h2>
+    <p class="hint">Each cell names the credential, who set it up, and its live status. Secret names only. Evidence and dates for every "working" are in <a href="../verification.md">verification.md</a>. The <strong>Mechanism</strong> column tags each integration as <span class="mech bdk">BDK</span> (hosted Agent SDK slug, wired with <code>githubChannel</code> + <code>--cursor-events-repo</code>), <span class="mech cursor-product">Cursor product</span> (platform feature, not a BDK agent), or <span class="mech jira-auto">Jira Automation</span> (Atlassian project Automation rule).</p>
+    <ul class="legend">
+      <li><span class="who system">working</span> seen working live</li>
+      <li><span class="who human">blocked</span> fails today, reason given</li>
+      <li><span class="who setting">unverified</span> in place, not yet seen working</li>
+      <li><span class="who">n/a</span> the agent does not use it</li>
+    </ul>
+    <table>
+      <thead><tr><th>Agent</th><th>Slack</th><th>Jira, <code>Factory Atlassian</code> team MCP</th><th>GitHub, team Cursor GitHub App</th><th>Cursor cloud agents</th></tr></thead>
+      <tbody>
+        <tr><td><span class="who agent">factory-desk</span></td>
+          <td><span class="who system">working</span><span class="note">Bot token secret <code>FACTORY_DESK_SLACK_BOT_TOKEN</code>. Set up by Simon via the dashboard wizard (app <code>A0EXAMPLE1</code>). Hosted Events API inbound is <code>app_mention</code>, <code>message</code>, and <code>reaction_added</code>: mentions, DMs, and posts in <code>#mars-eng-intake</code> (<code>FACTORY_DESK_INTAKE_CHANNEL</code> = <code>C0EXAMPLE1</code>), so a plain reply in a ticket thread reaches it with no mention. No cards; a ✅ / ❌ reaction on the filing prompt or plan post (<code>reaction_added</code>, 0.2.11) is the same as the typed command. Outbound <code>reactions:write</code> is how host approve adds ✅. Code path: <code>approve KEY</code> from the filer, in the ticket thread, while Planned, is <code>takeApproveCommand</code> (✅, no reply). <code>approveCommandText</code> also accepts a Cursor <code>*Sent using*</code> footer and a Slack-autolinked KEY; extra words from the person are not the host path. TLSSN-25's live send had that footer and missed the host path on the pre-#101 desk</span></td>
+          <td><span class="who setting">unverified</span><span class="note">Per-slug service-account OAuth consent, declared as a host connection. Simon consented as <code><OPERATOR_EMAIL></code>. The dashboard shows no connector card. Inbound: TLSSN Automation rule with <code>X-Factory-Webhook-Secret</code> = the <code>JIRA_WEBHOOK_SECRET</code> deployment secret</span></td>
+          <td><span class="who setting">unverified</span><span class="note">Read-only <code>githubChannel({ cursorAccount })</code> (<code>permissions: "read"</code>) on <code>FACTORY_REPOS</code>, deployed with <code>--cursor-events-repo</code>, for review updates only. No GitHub tool or connection and no GitHub write. Asked to fix a pull request, it replies that a person types <code>factory: drive</code> on it</span></td>
+          <td><span class="who">n/a</span><span class="note">Launches nothing</span></td></tr>
+        <tr><td><span class="who agent">triage-jira</span></td>
+          <td><span class="who">n/a</span><span class="note">No Slack channel</span></td>
+          <td><span class="who system">working</span><span class="note">Per-slug service-account OAuth consent, the only one declared in <code>mcp-connections/</code>. Simon consented as <code><OPERATOR_EMAIL></code>. Dashboard card <code>Factory Atlassian</code>, 1/1 connected. Inbound: TLSSN Automation rule with <code>X-Factory-Webhook-Secret</code> = the <code>JIRA_WEBHOOK_SECRET</code> deployment secret</span></td>
+          <td><span class="who">n/a</span></td>
+          <td><span class="who">n/a</span></td></tr>
+        <tr><td><span class="who agent">planner</span></td>
+          <td><span class="who">n/a</span><span class="note">No Slack channel</span></td>
+          <td><span class="who setting">unverified</span><span class="note">Per-slug service-account OAuth consent, declared as a host connection. Simon consented as <code><OPERATOR_EMAIL></code>. The dashboard shows no connector card. Inbound: TLSSN Automation rule with <code>X-Factory-Webhook-Secret</code> = the <code>JIRA_WEBHOOK_SECRET</code> deployment secret</span></td>
+          <td><span class="who setting">unverified</span><span class="note">Read-only <code>cursorAccount</code> on <code>cursor-demo-lab/marsbank</code>; hosted <code>search_sandbox</code> reads the tree through the GitHub pass-through (#84, #89). A local serve can read a clone instead</span></td>
+          <td><span class="who">n/a</span></td></tr>
+        <tr><td><span class="who agent">factory-worker</span></td>
+          <td><span class="who">n/a</span><span class="note">No Slack channel in code. <span class="pending">pending:</span> cleanup of a stray wizard app <code>A0EXAMPLE2</code> and its <code>FACTORY_WORKER_SLACK_BOT_TOKEN</code> secret</span></td>
+          <td><span class="who setting">unverified</span><span class="note">Per-slug service-account OAuth consent, declared as a host connection. Simon consented as <code><OPERATOR_EMAIL></code>. The dashboard shows no connector card. Inbound: TLSSN Automation rule with <code>X-Factory-Webhook-Secret</code> = the <code>JIRA_WEBHOOK_SECRET</code> deployment secret</span></td>
+          <td><span class="who system">working</span><span class="note">Read-only <code>cursorAccount</code> on <code>cursor-demo-lab/marsbank</code>, <code>pull_request</code> only, through the team Cursor GitHub App installation and <code>--cursor-events-repo</code>. It comments <code>Pull request: &lt;url&gt;</code> once, then moves the ticket to In Review when its implement pull request opens and to Done when a person merges it. Writes nothing to GitHub. The cloud agent it launches opens the pull request. Code on main; seen hosted on TLSSN-25 / marsbank #20 (2026-09-25)</span></td>
+          <td><span class="who system">working</span><span class="note"><code>@cursor/sdk</code> with the pod's <code>CURSOR_API_KEY</code>, platform-injected and bound to the slug's own deployment service account. <code>claude-opus-5-5</code> as the full variant launched on TLSSN-8 and TLSSN-9; TLSSN-9's agent opened marsbank #13</span></td></tr>
+        <tr><td><span class="who agent">pr-autofixer</span></td>
+          <td><span class="who">n/a</span><span class="note">No Slack channel in code. <span class="pending">pending:</span> cleanup of <code>PR_AUTOFIXER_SLACK_BOT_TOKEN</code> and its Pending Installation card</span></td>
+          <td><span class="who">n/a</span><span class="note">Reads no Jira. <code>FACTORY_JIRA_PROJECTS</code> gives the key prefixes</span></td>
+          <td><span class="who setting">unverified</span><span class="note">GitHub App installation (<code>cursor</code>, org-wide on <code>cursor-demo-lab</code>), the team installation from enabling Bugbot. <code>cursorAccount</code> with <code>contents-write</code>. No session yet: no red check or person-typed <code>factory: drive</code> on this release</span></td>
+          <td><span class="who setting">unverified</span><span class="note">July cloud-runtime session with the pod's <code>CURSOR_API_KEY</code>, platform-injected and bound to the slug's own deployment service account. No drive yet</span></td></tr>
+        <tr><td><span class="who agent">security-reviewer</span></td>
+          <td><span class="who">n/a</span><span class="note">No Slack channel</span></td>
+          <td><span class="who">n/a</span></td>
+          <td><span class="who system">working</span><span class="note">GitHub App installation, the team installation from enabling Bugbot. <code>cursorAccount</code> with the default <code>pr-write</code>. Reviews posted on marsbank #10, #11, and #13 (the worker's TLSSN-9 draft, <code>**Verdict:** FINDINGS</code>). Each delivery logs one <code>factoryDebug: "github-event"</code> line; read hosted logs with <code>bdk logs --prod</code></span></td>
+          <td><span class="who">n/a</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Integrations and who holds the credential</h2>
+    <table>
+      <thead><tr><th>Integration</th><th>Mechanism</th><th>Direction</th><th>Agent</th><th>Credential</th><th>Human gate</th></tr></thead>
+      <tbody>
+        <tr><td>Jira (<code>TLSSN</code>)</td><td><span class="mech jira-auto">Jira Automation</span> (inbound rules)<br><span class="mech bdk">BDK</span> (outbound writes via Factory Atlassian MCP)</td><td>In: five TLSSN project Automation rules, one per Jira-consuming slug plus a comment rule for the desk, each a "Send web request" with the header <code>X-Factory-Webhook-Secret</code> set to that slug's <code>JIRA_WEBHOOK_SECRET</code> (<a href="../jira-automation.md">jira-automation.md</a>). HMAC <code>X-Hub-Signature</code> from a system webhook or a replay is still accepted; an unsigned body is refused. Routes: triage and planner <code>/v1/channels/webhook/</code>, worker and desk <code>/v1/channels/jira/</code>. <code>jira:issue_created</code> wakes <code>factory-triage-jira</code>. <code>jira:issue_updated</code> with a <code>status</code> changelog item wakes the slug that owns the status it entered. <code>Triaged</code> wakes <code>factory-planner</code>. <code>Approved</code> wakes <code>factory-worker</code>. <code>Triaged</code>, <code>Planned</code>, <code>Approved</code>, <code>In Progress</code>, <code>In Review</code>, and <code>Done</code> wake <code>factory-desk</code>, so the desk's rule must list all six, Triaged, In Review, and Done included, and has <strong>Allow rule trigger</strong> ticked. The desk's Approved handler posts nothing while <code>approved-in-slack/&lt;KEY&gt;</code> is fresh. Hosted ingress answers 202 to Jira, and the handler's reply is not what Jira sees: an Automation audit "Success" is only that 202. Out: one created issue, comments, and transitions</td><td><code>factory-desk</code> creates the issue (<code>file_ticket</code>) after the requester's ✅ on the filing prompt (or <code>approve file</code>). The filer's ✅ on the plan post (or a plain <code>approve</code>) is <code>approvePlanned</code> (host, no model); extra words from the person that still mean approve call <code>approve_ticket</code>. Both move only from <code>Planned</code> and record <code>approved-in-slack/&lt;KEY&gt;</code>. <code>request_plan</code> moves to <code>Triaged</code> (through <code>To Do</code> if already <code>Triaged</code>). <code>takeThreadDetail</code> comments <code>Detail from Slack:</code> and bounces a Needs-info ticket. <code>deny_ticket</code> comments only. <code>factory-triage-jira</code> writes <code>Triage:</code> and moves to <code>Triaged</code>. <code>factory-planner</code> writes <code>Plan:</code> and moves to <code>Planned</code>, or leaves <code>Needs info:</code> / <code>Plan stopped:</code> and stays <code>Triaged</code>. <code>factory-worker</code> writes <code>Implementing:</code> and moves to <code>In Progress</code>; from its implement pull request it comments <code>Pull request: &lt;url&gt;</code> once, then moves to <code>In Review</code>, and to <code>Done</code> after a person merges. Hosted, no agent calls another</td><td>The <code>Factory Atlassian</code> team MCP (<code>https://mcp.atlassian.com/v2/mcp</code>), through <code>defineConnection({ cursorAccount: true, servers: ["Factory Atlassian"] })</code>. Triage declares it in <code>mcp-connections/</code>; the desk, planner, and worker declare it in <code>host-connections/</code>. The grant belongs to each slug's deployment service account. All four were consented on 2026-09-23 as <code><OPERATOR_EMAIL></code> for site <code><JIRA_SITE></code> with Jira read and write, so Jira records every factory write as that user. Only triage shows a connector card (1/1 connected). The desk, planner, and worker show "No connectors", and their consent link is minted with <code>CheckHttpMcpStatus</code> and the slug's <code>serviceAccountId</code> (deployment issue 11). Without consent, every Jira read and write returns <code>not_connected</code>. The tools are <code>getJiraIssue</code>, <code>createJiraIssue</code>, <code>addOrEditJiraIssueComment</code> (v1 <code>addCommentToJiraIssue</code>), <code>searchJiraIssuesUsingJql</code>, <code>listJiraIssueComments</code> through <code>executeRead</code>, and <code>transitionJiraIssue</code> after <code>executeRead</code> runs <code>listJiraIssueTransitions</code> (v1 <code>getTransitionsForJiraIssue</code>). Without those, a transition falls back to <code>transitionJiraIssue</code> by status name. Names are matched by shape at run time; the v2 input schemas are not yet observed live. Every tool whose schema declares <code>cloudId</code> gets <code>JIRA_CLOUD_ID</code>. It is unset on all four slugs, so the default <code>https://<JIRA_SITE>.atlassian.net</code> is sent. The handler accepts <code>X-Factory-Webhook-Secret</code> or <code>Authorization: Bearer</code> equal to <code>JIRA_WEBHOOK_SECRET</code> (timing-safe), or <code>X-Hub-Signature-256</code>, else <code>X-Hub-Signature</code>, as <code>sha256=</code> followed by an HMAC of the raw body, behind <code>publicEndpoint()</code>. Jira deliveries have no timestamp window, so a replayed delivery is stopped only by each slug's claim, or for triage by its <code>Triage:</code> comment check. Each of the four slugs holds <code>JIRA_WEBHOOK_SECRET</code> as a deployment secret. Today the four values are equal, so one header value goes on all four rules</td><td>Creating a ticket waits on the requester's ✅ on the filing prompt. <code>Approved</code> waits on the filer's ✅ on the plan post, or a person moving the card on the board. <code>Done</code> waits on a person merging the pull request; a bot merge or GitHub auto-merge never moves it. Other comments and transitions have no gate. <code>file_ticket</code> creates issues only in the first project in <code>FACTORY_JIRA_PROJECTS</code> (<code>TLSSN</code> here). The planner, the worker, and the desk's Jira channel ignore tickets outside those projects. Triage reads no project list and relies on the Automation rule's project scope. Hosted, only <code>FACTORY_JIRA_PROJECTS</code> is a deployment secret; the per-slug overrides <code>FACTORY_DESK_JIRA_PROJECT</code>, <code>FACTORY_PLANNER_JIRA_PROJECTS</code>, and <code>PR_AUTOFIXER_AUTO_DRIVE_PROJECTS</code> work on a local serve only. Unset, the worker launches nothing, the desk announces every project, and the planner plans but cannot comment</td></tr>
+        <tr><td>Slack</td><td><span class="mech bdk">BDK</span></td><td>In: mentions, direct messages, and every post in <code>#mars-eng-intake</code> (<code>engagement.channelPosts</code>, <code>posts: "all"</code>), so a bare reply in a ticket thread wakes the desk without a mention. Hosted v2 inbound is <code>message</code>, <code>app_mention</code>, and (0.2.11, once the app has the 0.2.11 manifest) <code>reaction_added</code>: ✅ / ❌ from the filer on the plan post approve or decline; a 👍 does nothing. Out: model replies; host posts for Triaged, Planned, In Progress, In Review, Done, move-back, and outcome comments; an Approved line only when the move was not a fresh Slack approval; outbound ✅ on a typed <code>approve</code> command once it lands. The desk sends posts to the filing thread, else to <code>FACTORY_DESK_INTAKE_CHANNEL</code> (<code>C0EXAMPLE1</code>, <code>#mars-eng-intake</code>), where a ticket filed in Jira gets one root post and every later post replies under it</td><td><code>factory-desk</code> is the intended Slack app. It launches nothing. <span class="pending">pending:</span> cleanup. A stray wizard app <code>factory-worker</code> is installed with <code>FACTORY_WORKER_SLACK_BOT_TOKEN</code> set, though the worker has no Slack channel. <code>factory-pr-autofixer</code> holds <code>PR_AUTOFIXER_SLACK_BOT_TOKEN</code> with a Pending Installation card, though the fixer has no Slack channel</td><td><code>FACTORY_DESK_SLACK_BOT_TOKEN</code> (hosted v2 Events API), set by Simon through the dashboard wizard. Local Socket Mode also uses <code>FACTORY_DESK_SLACK_APP_TOKEN</code>, which is not a deployment secret</td><td>✅ / ❌ reactions on the filing prompt and the plan post (<code>reactions:read</code>, <code>reaction_added</code>), or plain replies in the thread with no mention (<code>approve file</code> / <code>deny file</code>, then <code>approve</code>, <code>replan KEY</code>). Only the requester can file, and only the filer can approve, deny, or replan, and only in the ticket's own thread. A Needs-info reply may come from anyone in the workspace. No cards. Parked approvals die on replace, so <code>toolApprovals</code> is off; reactions go to the desk's own <code>onReactionAdded</code>. Code intends a ✅ ack on <code>approve KEY</code>, including Cursor <code>*Sent using*</code> chrome and a Slack-autolinked KEY; that is outbound, not an inbound reaction gate</td></tr>
+        <tr><td>Sandbox checkout (local clone)</td><td><span class="mech bdk">BDK</span></td><td>Read only</td><td><code>factory-planner</code></td><td><code>FACTORY_PLANNER_CHECKOUT</code>, a local path. It stays unset hosted, so the hosted planner has no clone and plans from the ticket</td><td>None. The planner has no write tool</td></tr>
+        <tr><td>Cursor cloud agents</td><td><span class="mech bdk">BDK</span></td><td>Out: the implementation launch, and the fixer's drive</td><td><code>factory-worker</code> (<code>@cursor/sdk</code>: <code>Agent.create</code> builds the handle, and the first send carries the brief and <code>idempotencyKey: "implement/&lt;KEY&gt;"</code>; model <code>claude-opus-5-5</code> as the full variant <code>context=300k, effort=high, fast=false</code> (<code>IMPLEMENT_MODEL</code>, read once at start; <code>FACTORY_WORKER_*</code> override it on a local <code>serve</code> only); <code>cloud.repos</code> from <code>FACTORY_SANDBOX_REPO</code> at <code>FACTORY_SANDBOX_REF</code>, default <code>main</code>; <code>autoCreatePR: false</code>, and the first send ends with a ready-PR handoff so the agent opens the PR ready, never a draft). Only the worker launches cloud agents on the sandbox repository; the planner also holds <code>FACTORY_SANDBOX_REPO</code>, to read it. <code>factory-pr-autofixer</code> for drives: a July cloud-runtime session (<code>send</code> with <code>cloud</code> options, <code>autoCreatePR: false</code>), not <code>@cursor/sdk</code></td><td>Each pod's <code>CURSOR_API_KEY</code>, injected by the platform and bound to that slug's own deployment service account (deployment issue 11), over <code>api.cursor.com</code>. The first hosted launches (TLSSN-8, 2026-09-23) authenticated with the pod key but were refused as <code>invalid_model</code> with an effort-only variant; with the full variant the worker launched the cloud agent and moved TLSSN-8 to In Progress (proven live, 2026-09-23)</td><td>The ticket entering <code>Approved</code>, from <code>approve KEY</code> in the thread or a person on the board</td></tr>
+        <tr><td>GitHub, read tier (status moves)</td><td><span class="mech bdk">BDK</span></td><td>In: <code>pull_request</code> on <code>cursor-demo-lab/marsbank</code>. Opened, reopened, ready_for_review, or synchronize on the implement pull request comments <code>Pull request: &lt;url&gt;</code> once, then moves the ticket from <code>In Progress</code> to <code>In Review</code>. Closed and merged by a person moves it from <code>In Review</code> to <code>Done</code> (from <code>In Progress</code>, through <code>In Review</code>) and does not write a second link comment. Out: nothing to GitHub; Jira transitions through the Atlassian connector. Deploy the worker (and planner) with <code>--cursor-events-repo cursor-demo-lab/marsbank</code> or the Cursor event stream is not bound</td><td><code>factory-worker</code> (<code>githubChannel</code>, <code>cursorAccount</code>, <code>permissions: "read"</code>, <code>webhookEvents: ["pull_request"]</code>, no replies, comments ignored). A host task, never a model turn</td><td>Minted per repo from the team-owned Cursor GitHub App installation, like the other GitHub slugs. <code>--cursor-events-repo cursor-demo-lab/marsbank</code> on every redeploy</td><td>Only the implement pull request counts: into <code>FACTORY_SANDBOX_REF</code>, head branch starting with the key (or <code>cursor[bot]</code> opened it with the key in the title), for a ticket the worker launched. <code>Done</code> needs a person's merge: the sender and <code>merged_by</code> are GitHub type <code>User</code> with no <code>[bot]</code>, and <code>auto_merge</code> is not set. No agent merges</td></tr>
+        <tr><td>GitHub, manual drive</td><td><span class="mech bdk">BDK</span></td><td>In: one <code>factory: drive</code> comment a person types on a pull request the factory did not open</td><td><code>factory-pr-autofixer</code> wakes on it. <code>factory-desk</code> writes nothing to GitHub; asked to fix a pull request, it replies with this instruction</td><td>The person's own GitHub account</td><td>The comment is the opt-in. It wakes the fixer only if a person is its author, because Cursor's hosted GitHub webhook ingress drops every bot-authored comment. The main path needs no comment: a factory pull request is driven on its first red check</td></tr>
+        <tr><td>GitHub, write tier</td><td><span class="mech bdk">BDK</span></td><td>In: pull request, <code>check_suite</code>, <code>workflow_run</code>, comment, and review events. Hosted v2 never forwards <code>check_run</code>. A <code>factory: drive</code> comment typed by a person on GitHub is the opt-in. Out: pushes and <code>gh</code> workflow actions</td><td><code>factory-pr-autofixer</code> (<code>githubChannel</code>, <code>cursorAccount</code>, <code>contents-write</code>, <code>botName: "factory-pr-autofixer"</code>)</td><td>Minted per repo from the team-owned Cursor GitHub App installation (<code>cursor</code>, org-wide on <code>cursor-demo-lab</code>). It watches <code>cursor-demo-lab/marsbank</code> through <code>githubChannel({ cursorAccount })</code> and <code>--cursor-events-repo cursor-demo-lab/marsbank</code>, repassed on every redeploy. It ignores its own comments by <code>botName</code>. <span class="pending">pending:</span> a real <code>factory: drive</code> check that its comments post as <code>factory-pr-autofixer[bot]</code></td><td>A factory pull request (branch starts with a key from <code>FACTORY_JIRA_PROJECTS</code>, or the title does and <code>cursor[bot]</code> opened it; an empty list turns this off) is driven on its first failed <code>check_suite</code> or <code>workflow_run</code> with no opt-in. <span class="pending">pending:</span> a first red <code>check_suite</code> on the current release. marsbank #6 went red before it and has no fixer session. Any other pull request needs a <code>factory: drive</code> comment typed by a person on GitHub. Cursor's hosted GitHub webhook ingress drops every bot-authored comment (type Bot or App, a <code>[bot]</code> login, or the Cursor bot), <code>cursor[bot]</code> included, before the agent. Locally, July drops only the fixer's own <code>botName</code> comments. It never merges or force-pushes</td></tr>
+        <tr><td>GitHub, comment tier (security review)</td><td><span class="mech bdk">BDK</span></td><td>In: <code>pull_request</code> opened, reopened, synchronize, and ready_for_review. Out: one <code>COMMENT</code> review starting <code>## Security review</code> with <code>**Verdict:** CLEAN|FINDINGS|INCOMPLETE</code>. The review is from <code>cursor[bot]</code> and appears in both Reviews and Conversation. On marsbank PR #25 (TLSSN-28), verdict was CLEAN (pullrequestreview-5322848751). Each delivery the hooks see logs one <code>factoryDebug: "github-event"</code> line with the decision; <code>bdk logs --prod</code> showed it for a delivery that started a review. Reviews are proven on marsbank #10, #11, and #13, including the worker's own <code>cursor[bot]</code> draft for TLSSN-9</td><td><code>factory-security-reviewer</code> (<code>githubChannel</code>, <code>cursorAccount</code>, default <code>pr-write</code>)</td><td>Minted per repo from the team-owned Cursor GitHub App installation. It watches <code>cursor-demo-lab/marsbank</code> through <code>githubChannel({ cursorAccount })</code> and <code>--cursor-events-repo cursor-demo-lab/marsbank</code>, repassed on every redeploy</td><td>None. A comment cannot block</td></tr>
+        <tr><td>Bugbot</td><td><span class="mech cursor-product">Cursor product</span></td><td>Posts a GitHub Checks run named <code>Cursor Bugbot</code> on every pull request head. When clean: conclusion <code>success</code>, summary "no issues found", no Conversation comment. When findings: the check names them and a review comment may appear. Look on the <strong>Checks tab</strong>, not Conversation, to confirm Bugbot ran. On marsbank PR #25 (TLSSN-28, head <code>f3b78d3</code>), the check completed with conclusion success. Run URL pattern: <code>https://github.com/cursor-demo-lab/marsbank/runs/&lt;id&gt;</code></td><td>None. A Cursor dashboard setting, enabled per-repo. Often enabled alongside the same Cursor GitHub App install the factory uses</td><td>Repo toggle</td><td>None. Advisory until branch protection is available</td></tr>
+        <tr><td>Change-monitor</td><td><span class="mech cursor-product">Cursor product</span></td><td>Maintains a sticky issue comment on the pull request with a rollout plan. Identifiable by <code>Mention @change-monitor</code> in the visible text and <code>cursor:sticky:change-monitor-plan</code> HTML comment markers in the source. Posted by <code>cursor[bot]</code> in <strong>Conversation</strong>. Distinct from the security review (<code>## Security review</code> is a pull request review, not an issue comment) and from Bugbot (a Checks run, not a comment). Advisory</td><td>None. A Cursor product platform feature, not a BDK agent, not a Jira Automation rule, and not Bugbot</td><td>Cursor platform</td><td>None. Advisory</td></tr>
+        <tr><td>Branch protection</td><td>—</td><td>Would block every merge until the checks pass. <span class="pending">pending:</span> not enforced. <code>cursor-demo-lab</code> is on GitHub Free and marsbank is private, so branch protection and rulesets return 403</td><td>None. A GitHub setting</td><td>Repo admin, after an upgrade to GitHub Pro or a public repo</td><td>A person checks CI (<code>CI / test</code>), Bugbot, and one review before merging</td></tr>
+        <tr><td>GitHub's Slack app</td><td>—</td><td>Posts failing checks to <code>#factory-escalations</code>. <span class="pending">pending:</span> the subscription is not verified</td><td>None. A GitHub setting</td><td>Slack workspace admin</td><td>A person reads it and decides</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="pr-capture">How to prove PR integrations on a live end-to-end</h2>
+    <p class="hint">On a live PR (e.g. marsbank #25 / TLSSN-28), three integrations land on three different GitHub surfaces. All three post as <code>cursor[bot]</code>, but each is a distinct mechanism. Verify each independently.</p>
+    <table>
+      <thead><tr><th>Integration</th><th>Mechanism</th><th>Where to look</th><th>When clean</th><th>When findings</th><th>Identify by</th></tr></thead>
+      <tbody>
+        <tr><td>Bugbot</td><td><span class="mech cursor-product">Cursor product</span></td><td><strong>Checks tab</strong></td><td>Checks run <code>Cursor Bugbot</code>, conclusion <code>success</code>, summary "no issues found". No Conversation comment</td><td>Checks run names findings; a review comment may appear in Conversation</td><td>Run name <code>Cursor Bugbot</code>. URL pattern <code>https://github.com/…/runs/&lt;id&gt;</code></td></tr>
+        <tr><td>Security review</td><td><span class="mech bdk">BDK</span> (<code>factory-security-reviewer</code>)</td><td><strong>Reviews</strong> and <strong>Conversation</strong></td><td>A <code>COMMENT</code> review from <code>cursor[bot]</code> with body <code>## Security review</code> … <code>**Verdict:** CLEAN</code></td><td>Same shape, <code>**Verdict:** FINDINGS</code> or <code>INCOMPLETE</code> with listed files</td><td>Body starts <code>## Security review</code> then <code>**Verdict:**</code>. Review id e.g. <code>pullrequestreview-5322848751</code></td></tr>
+        <tr><td>Change-monitor</td><td><span class="mech cursor-product">Cursor product</span></td><td><strong>Conversation</strong> (issue comment, not a review)</td><td colspan="2">Sticky comment updated on each push. Contains <code>Mention @change-monitor</code> visible text. Not a check, not a review</td><td>HTML comment markers <code>cursor:sticky:change-monitor-plan</code> in the comment source</td></tr>
+        <tr><td>Autofixer</td><td><span class="mech bdk">BDK</span> (<code>factory-pr-autofixer</code>)</td><td><strong>Commits</strong> and <strong>Conversation</strong></td><td>Absent. No drive starts when CI is green (PR #25 had no autofix session)</td><td>Push commits from <code>cursor[bot]</code> on the PR branch, plus a <code>factory-pr-autofixer</code> comment</td><td>Branch commits after the first red check. Confirm no drive commit when green</td></tr>
+      </tbody>
+    </table>
+    <p class="hint">The e2e driver (<code>node scripts/e2e-drive.mjs</code>) verifies the security review row by matching a <code>COMMENTED</code> review whose body opens with <code>## Security review</code> then <code>**Verdict:** CLEAN</code> or <code>FINDINGS</code>. It does not verify Bugbot (a Checks run, not a review) or change-monitor (an issue comment, not a review). To verify all three manually: open the PR on GitHub, check the Checks tab for <code>Cursor Bugbot</code>, check Reviews for <code>## Security review</code>, and check Conversation for the sticky <code>@change-monitor</code> comment.</p>
+
+    <h2 id="jira-rules">Jira Automation rules</h2>
+    <p class="hint">Five rules in the <code>TLSSN</code> project carry the status bus. Every rule sends a web request with method <code>POST</code>, header <code>Content-Type: application/json</code>, and the hidden header <code>X-Factory-Webhook-Secret</code> (its value is the slug's secret; never paste it into docs), with "Wait for response" unticked. Full setup: <a href="../jira-automation.md">jira-automation.md</a>.</p>
+    <table>
+      <thead><tr><th>Rule</th><th>Trigger</th><th>URL (channel path)</th><th>Body</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-desk</code></td><td>Work item transitioned to In Progress, Planned, Approved, In Review, Done or Triaged</td><td><code>.../agents/&lt;desk agent id&gt;/engine/v1/channels/jira/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-planner</code></td><td>Transitioned to Triaged</td><td><code>.../agents/&lt;planner agent id&gt;/engine/v1/channels/webhook/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-worker</code></td><td>Transitioned to Approved</td><td><code>.../agents/&lt;worker agent id&gt;/engine/v1/channels/jira/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-desk-comments</code></td><td>Comment added (all comments)</td><td>desk <code>.../channels/jira/</code></td><td>Comment body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-triage-jira</code></td><td>Work item created</td><td><code>.../agents/&lt;triage agent id&gt;/engine/v1/channels/webhook/</code></td><td>Triage body</td></tr>
+      </tbody>
+    </table>
+    <div class="grid">
+      <div class="card gate"><strong>Every free-text smart value uses <code>.jsonEncode</code></strong><span class="sub">Summary, description, reporter name, and comment body are encoded. An unescaped quote in a title made invalid JSON that the host dropped silently while Jira still logged "Successfully published web request". That broke planning for TLSSN-40/41.</span></div>
+    </div>
+    <p class="hint">Status body (<code>factory-desk</code>, <code>factory-planner</code>, <code>factory-worker</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "jira:issue_updated", "issue": { "key": "{{issue.key}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" } } }, "changelog": { "id": "{{issue.key}}:{{issue.status.name}}:{{issue.updated}}", "items": [ { "field": "status", "fromString": "{{#changelog.status}}{{fromString}}{{/}}", "toString": "{{#changelog.status}}{{toString}}{{/}}" } ] } }</code></pre>
+    <p class="hint">Comment body (<code>factory-desk-comments</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "comment_created", "issue": { "key": "{{issue.key}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" } } }, "comment": { "id": "{{comment.id}}", "body": "{{comment.body.jsonEncode}}" } }</code></pre>
+    <p class="hint">Triage body (<code>factory-triage-jira</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "jira:issue_created", "issue": { "key": "{{issue.key}}", "self": "{{issue.url}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "description": "{{issue.description.plainText.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" }, "reporter": { "displayName": "{{issue.reporter.displayName.jsonEncode}}" } } } }</code></pre>
+
+    <h2 id="automations">Automations as code (cursor-agent + YAML)</h2>
+    <p class="hint">The live factory runs as the six hosted Agent SDK (<code>@cursor/july</code> 0.2.18) deployments: the Jira rules above POST to the hosts' engine channel URLs, and GitHub events arrive through <code>--cursor-events-repo</code>. The same event wiring is also written as Cursor Automations config-as-code, one file per role at the repo root in <a href="https://github.com/example-org/demo-repo/tree/main/.cursor/automations"><code>.cursor/automations/factory-*.yaml</code></a>, deployable with <code>cursor-agent automations deploy</code>. Each spec runs <code>claude-opus-5-5</code> at low effort and its prompt points at the host's <code>AGENTS.md</code> in the checkout. There is no Jira trigger kind, so the Jira rules map to <code>webhook: {}</code>. Two out-of-the-box templates sit beside them, also <code>enabled: false</code>: <code>find-vulnerabilities.yaml</code> ("Find vulnerabilities" on marsbank PRs) and <code>find-bugs.yaml</code> ("Find critical bugs", not Bugbot). Bugbot, the managed Security Reviewer, and change monitor have no YAML form; turn them on in the dashboard (Bugbot rules live in <code>.cursor/BUGBOT.md</code>). Full guide: <a href="../cursor-agent-automations.md">cursor-agent-automations.md</a>.</p>
+    <div class="grid">
+      <div class="card gate"><strong>The specs ship <code>enabled: false</code></strong><span class="sub">Deploying them next to the live hosts cannot double-handle an event. Enable one only when it replaces (or shadows, pointed elsewhere) the matching host. A disabled deploy still creates the record, so <code>validate</code>, <code>get --yaml</code>, and <code>test</code> work.</span></div>
+      <div class="card"><strong>The <code>automations</code> verbs are gated</strong><span class="sub">They need the <code>automations_config_as_code</code> gate on the account. If <code>cursor-agent automations --help</code> prints only the main help, the gate is off. <code>agent</code> is the same binary.</span></div>
+    </div>
+    <p class="hint"><code>factory-desk.yaml</code> (abridged: <code>description</code> and the deploy-notes body after the closing <code>---</code> are omitted):</p>
+    <pre class="code"><code>---
+version: 1
+key: factory-desk
+name: "factory-desk"
+enabled: false
+scope: team_visible
+managed-by: ANY
+workflow:
+  prompts:
+    - prompt: |-
+        You are the Software Factory `factory-desk` role, run as a Cursor Automation.
+        Read factory-desk/AGENTS.md and
+        factory-desk/agent/instructions.md from the
+        example-org/demo-repo checkout, and follow agent/instructions.md as your
+        role prompt. The triggering Slack event or Jira payload is in the run context.
+        Do not edit this prompt to change behaviour; change the files it points at.
+  triggers:
+    - slackMention:
+        channel: C0EXAMPLE1
+    - slackReactionAdded:
+        channel: C0EXAMPLE1
+        emojiName: white_check_mark
+    - slackReactionAdded:
+        channel: C0EXAMPLE1
+        emojiName: x
+    - slackTrigger:
+        channel: C0EXAMPLE1
+        topLevelOnly: false
+      agenticFilterPrompt: |-
+        Pass only a plain reply inside a thread the factory started (a filing
+        prompt, a Filed post, or a ticket status thread). Drop top-level posts
+        and replies in threads the factory is not part of.
+    - webhook: {}
+  actions:
+    - slack:
+        channel: C0EXAMPLE1
+    - mcp:
+        server:
+          name: Factory Atlassian
+  model: claude-opus-5-5-low
+  modelSelection:
+    modelId: claude-opus-5-5
+    parameters:
+      - id: effort
+        value: low
+  gitConfig:
+    repo: https://github.com/example-org/demo-repo
+    branch: main
+  disabledDefaultTools:
+    - AUTOMATION_DEFAULT_TOOL_OPEN_GIT_PR
+---</code></pre>
+    <p class="hint">Apply from the repo root, as a real user (Slack and PR actions act through the deploying owner's connections):</p>
+    <pre class="code"><code>cursor-agent automations validate .cursor/automations/factory-desk.yaml
+cursor-agent automations deploy   .cursor/automations/factory-desk.yaml
+cursor-agent automations list --managed-by ANY --format text
+cursor-agent automations get factory-desk --yaml
+
+for f in .cursor/automations/factory-*.yaml \
+         .cursor/automations/find-vulnerabilities.yaml \
+         .cursor/automations/find-bugs.yaml; do
+  cursor-agent automations validate "$f" &amp;&amp; cursor-agent automations deploy "$f"
+done</code></pre>
+
+    <h2 id="limits">Known limits and open follow-ups</h2>
+    <ul>
+      <li>Reactions count only on a post the desk recorded when it landed (the filing prompt, the plan post). A ✅ on anything else, or from anyone but the requester or filer, is ignored with no reply.</li>
+      <li>Two approve beats remain by design: ✅ on the filing prompt files the ticket, ✅ on the plan post builds it.</li>
+      <li>Marsbank implement pull requests are merged by a person. No agent merges and auto-merge is off; a bot or auto-merge merge never moves the ticket to Done.</li>
+      <li>A free-text Jira smart value without <code>.jsonEncode</code> breaks the rule body: TLSSN-40/41 were dropped silently while Jira logged "Successfully published web request". See <a href="#jira-rules">Jira Automation rules</a>.</li>
+      <li>The security reviewer still posts one review per pushed head, not one per verdict change.</li>
+      <li>Autofixer commits do not yet name the ticket key in their titles.</li>
+      <li>Review updates need <code>factory-desk</code> redeployed with <code>--cursor-events-repo cursor-demo-lab/marsbank</code> and <code>FACTORY_REPOS</code> set. Hosted delivery of <code>pull_request_review</code> is unverified, so a security review that lands after Bugbot and CI waits for the desk's 1, 3, and 6 minute re-reads or the next push. The autofix line is inferred from a bot push after red CI.</li>
+      <li>Tickets filed directly in Jira get no Slack thread link on the ticket or PR and no status reactions.</li>
+    </ul>
+
+    <footer>This page follows the factory-desk, factory-planner, factory-triage-jira, and factory-worker code on main. The step list is one array in the page's script. Markdown under <code>docs/</code> that disagrees is stale.</footer>
+  </main>
+
+  <script>
+    const lanes = [
+      { id: "people", label: "People", kind: "human" },
+      { id: "slack", label: "Slack", kind: "system" },
+      { id: "jira", label: "Jira", kind: "system" },
+      { id: "triage", label: "factory-triage-jira", kind: "agent" },
+      { id: "desk", label: "factory-desk", kind: "agent" },
+      { id: "planner", label: "factory-planner", kind: "agent" },
+      { id: "worker", label: "factory-worker", kind: "agent" },
+      { id: "security", label: "factory-security-reviewer", kind: "agent" },
+      { id: "fixer", label: "factory-pr-autofixer", kind: "agent" },
+      { id: "cloud", label: "Cursor cloud", kind: "system" },
+      { id: "github", label: "GitHub", kind: "system" },
+      { id: "settings", label: "Settings", kind: "setting" },
+      { id: "state", label: "Factory state", kind: "store" }
+    ];
+
+    const phases = [
+      { id: "ticket", title: "Open a request, Jev triages, react to file", lede: "Alice opens a request with @Factory in #mars-eng-intake (new requests start with the mention; plain replies in the thread need none). Before anything is filed the desk asks Jev to triage it (host code, 8 s budget; when Jev is unsure or down, the desk's grok-4.6-fast turn triages instead) and posts one filing prompt: the title, Bug, medium severity (triaged by Jev), the summary, and React ✅ to file or ❌ to drop, or reply approve file / deny file. There are no buttons. Her ✅ on that prompt files the ticket through the Factory Atlassian team MCP, host-only; ❌ files nothing. The desk saves the thread under the new key in host.kv, writes the Triage: comment, moves the ticket to Triaged, and relays the one Filed post. The desk adds 👀 to her message as soon as the request arrives." },
+      { id: "chain", title: "Triage and plan, on the ticket's status", lede: "Jira is the bus, and the ticket's status is the event. Each stage writes its artifact as a comment, then moves the ticket. The next agent wakes on jira:issue_updated with a status changelog item into its status. issue_created wakes factory-triage-jira. Triaged wakes factory-planner and factory-desk. Planned wakes factory-desk. Each Jira-consuming slug has its own TLSSN project Automation rule, which sends the status body with X-Factory-Webhook-Secret set to that slug's JIRA_WEBHOOK_SECRET (today the four values are equal). Hosted ingress answers 202 to Jira. The planner, the desk, and the worker each claim a key in their own host.kv before they act. host.kv has no compare-and-set (no putIfAbsent or putIfVersion in July 0.2.13): the planner's and the worker's claims are read then put, and the desk's are a read-back lease, so two racing deliveries can both claim. Triage takes no claim; its Triage: comment check is the dedupe. Hosted, no agent calls another agent. A question, needs-info, or duplicate still gets a Triage: comment and still moves To Do → Triaged, then stays Triaged: the planner's gate skips those verdicts. When the planner leaves Needs info:, or triage's verdict needs information, Alice replies in the thread with the missing detail. Host code writes Detail from Slack: KEY, bounces the ticket To Do → Triaged, and posts that it sent the reply back to the planner. No Jira description edit and no @factory plan KEY are required." },
+      { id: "approve", title: "✅ on the plan, launch on the worker", lede: "Alice reacts ✅ on the plan post (or replies a plain approve in the thread). Host code (approvePlanned) takes the ticket's decision hold, moves Planned → Approved, and records approved-in-slack/KEY, so the Approved webhook posts nothing and the thread's next beat is exactly one In Progress post. ❌ on the plan writes Denied in Slack by <name> and leaves the ticket Planned. Moving the card to Approved on the board does the same launch and still posts KEY is Approved. The desk launches nothing. factory-worker wakes on Approved, reads the Brief: from the Plan: comment, starts the cloud agent on cursor-demo-lab/marsbank, comments Implementing: with the agent URL, and moves the ticket to In Progress. The desk wakes on In Progress and posts the URL into the thread." },
+      { id: "review", title: "Build and review", lede: "The cloud agent the worker launched opens the pull request on cursor-demo-lab/marsbank from the recorded brief. factory-worker hears the pull_request event through its read-only GitHub channel, comments Pull request: <url> once, then moves the ticket from In Progress to In Review. The desk reads that comment and posts KEY is In Review: owner/repo#N is open. A card moved by hand, with no Pull request: comment, gets the plain line. No Jira Automation rule and no GitHub for Jira transition makes this move. Three independent integrations then act on the pull request, each on a different GitHub surface: Bugbot (Cursor product) posts a Checks run named Cursor Bugbot — visible on the Checks tab, not as a Conversation comment when clean; factory-security-reviewer (BDK slug) posts a COMMENT review starting ## Security review with a **Verdict:** line — visible in Reviews and Conversation; and change-monitor (Cursor product) maintains a sticky issue comment with a rollout plan — visible in Conversation with cursor:sticky:change-monitor-plan HTML comment markers. Nobody asks for any of the three." },
+      { id: "fix", title: "Fix a failed check, a person merges, Done", lede: "A failed check_suite or workflow_run on a pull request the factory opened starts factory-pr-autofixer without a request. The fixer knows the pull request is the factory's because the branch name starts with a key from FACTORY_JIRA_PROJECTS, or the title does and cursor[bot] opened it; a person's keyed title alone is not enough, the same rule the worker applies before it moves a ticket. A first red check on a factory PR is the automatic path; a PR the factory did not open needs a person to type factory: drive on GitHub. The fixer wakes on that comment and drives. Cursor's hosted GitHub webhook ingress drops comments by bots before any agent sees them. Asked in Slack to fix a pull request, the desk replies with that instruction; it writes nothing to GitHub. A person merges once CI, Bugbot, and one human review pass; no agent merges and nobody turns on auto-merge. factory-worker hears the merge and moves the ticket from In Review to Done without writing a second Pull request: comment. The desk posts KEY is Done: owner/repo#N was merged by <person>. and the filer's message moves 🔍 → ✅. A merge by a bot or app, or by GitHub auto-merge, never moves the ticket to Done. pending: branch protection, unavailable on GitHub Free for a private repo." }
+    ];
+
+    // One object per step. `actor` is the lane that acts; `target` is the lane the step lands in and
+    // `effect` what it leaves there. `store` adds a pill in the Factory state lane. `gate` marks a
+    // step nothing proceeds past without a person. `reply` draws the step arrow dashed.
+    const steps = [
+      { phase: "ticket", actor: "people", target: "slack", title: "Alice opens a request", tag: "@Factory", effect: "New thread with the desk, 👀 on it", integration: "Slack app_mention in #mars-eng-intake (C0EXAMPLE1) or a DM", gate: "Filing request", sub: "@Factory CSV export returns 500 when the filter matches no rows. A new request starts with the mention; every later reply in this thread is plain text and still reaches the desk." },
+      { phase: "ticket", actor: "desk", title: "Jev triages before filing", tag: "Jev, host code", store: "intake-triage/<channel>:<ts>", integration: "TypeSafe Jev (TYPESAFE_API_KEY), host-side", sub: "askTriageJev judges the request text (type from the project, severity). An answer above 0.52 is by: jev and host code writes the whole filing prompt. Jev unsure, down, or past 8 s: the same grok-4.6-fast desk turn triages it with the inlined rubric. No scores reach Slack." },
+      { phase: "ticket", actor: "desk", target: "slack", title: "Desk posts the filing prompt", tag: "one reply", effect: "React ✅ to file or ❌ to drop", store: "filing-prompt/<channel>:<ts>", integration: "Slack Web API through the desk's bot token", sub: "One post: the title, Bug, medium severity (triaged by Jev), Summary:, then React ✅ to file or ❌ to drop, or reply approve file / deny file. (No mention, nothing about later steps; in a channel the desk does not watch, only React ✅ to file or ❌ to drop.) The desk records the prompt as a reaction target with Alice as requester. Nothing is created yet." },
+      { phase: "ticket", actor: "people", target: "desk", title: "Alice reacts ✅ on the prompt", tag: "reaction_added", effect: "file_ticket runs", integration: "Slack reaction_added (reactions:read)", gate: "Ticket approval", sub: "Only the requester's ✅ or ❌ on the recorded prompt counts; a bot, a Slack Connect sender, or anyone else is ignored. ❌ posts one short line and files nothing. A typed approve file does the same as ✅, and file-ticket/<channel>:<ts> makes both file one issue." },
+      { phase: "ticket", actor: "desk", target: "jira", title: "Desk creates TLSSN-42", tag: "Jira, host-only", effect: "New issue, Triage: comment, Triaged", store: "thread saved as ticket/TLSSN-42", integration: "Factory Atlassian team MCP, host-only", sub: "file_ticket creates the issue in TLSSN with Jev's type, appends Slack thread: <permalink> and the desk-triaged line to the description (so triage-jira skips it), writes the Triage: comment, and moves To Do → Triaged. That move is the planner's handoff. Jira records the issue as the account that gave the service-account consent." },
+      { phase: "ticket", actor: "desk", target: "slack", title: "Desk posts Filed", tag: "host.slack", effect: "KEY is filed: Bug, low severity (triaged by Jev)", integration: "Slack Web API through the desk's bot token", sub: "The one Filed post: the key as link text, the triage it was filed with and who made it, and nothing about later steps. For a desk-filed ticket this is the Triaged beat; no second Triaged line follows for the same verdict." },
+      { phase: "chain", actor: "jira", target: "triage", title: "issue_created webhook", tag: "signed webhook", effect: "Session for TLSSN-42", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The TLSSN Automation rule for Issue created posts a jira:issue_created body to /v1/channels/webhook/ on factory-triage-jira. Hosted ingress answers 202 to Jira. The handler accepts X-Factory-Webhook-Secret (or Authorization: Bearer) equal to JIRA_WEBHOOK_SECRET, or an X-Hub-Signature-256 / X-Hub-Signature HMAC of the raw body, behind publicEndpoint(); an unsigned body is refused. Triage reads no project list; the rule's project scope is its only scope. The channel pins the session to the issue key with admission coalesce. It takes no host.kv claim. record_triage skips the comment when a Triage: comment is already on the ticket, and then moves the ticket only while it is still To Do." },
+      { phase: "chain", actor: "triage", target: "jira", title: "Triage comments, then moves", tag: "Factory Atlassian", effect: "Triage: comment, then Triaged", integration: "Factory Atlassian team MCP", sub: "record_triage writes one Triage: comment with addOrEditJiraIssueComment. It holds the kind, the severity, a summary, and the next step. It adds a Duplicate of: line when searchJiraIssuesUsingJql finds another ticket with the same title, and posts Triage: duplicate inbound TLSSN-42 on the original ticket. It adds a Needs info: line when the ticket is too thin. Host-side, Jev (TypeSafe, TYPESAFE_API_KEY) judges the Jira issue type (Bug, Story, or Task) and the severity; the type is written to Jira only at or above 0.8, and a Judge: Jev … line records what it chose. Severity stays in the comment and is never written as a Jira priority. Then it moves the ticket to Triaged, only while it is still in To Do: a late or replayed delivery never drags a planned or launched ticket back. A question, needs-info, or duplicate still comments and still moves To Do → Triaged. Those tickets then stay Triaged because the planner's gate skips them (kind not bug/feedback, Needs info:, or Duplicate of:). executeRead lists the transitions with listJiraIssueTransitions, and transitionJiraIssue applies one. The status change is the handoff. Hosted, it does not call the planner." },
+      { phase: "chain", actor: "jira", target: "desk", title: "Ticket enters Triaged", tag: "issue_updated", effect: "Desk Jira channel, no model turn", store: "claim announced/<KEY>:Triaged:<changelog.id>", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The same move reaches factory-desk through its own rule, which lists Triaged beside Planned, Approved, In Progress, In Review, and Done. The desk posts only into a thread the ticket already has, so a ticket filed in Jira gets nothing here and its plan stays the first reply under its intake root." },
+      { phase: "chain", actor: "desk", target: "slack", title: "Desk posts the triage verdict", tag: "host.slack", effect: "KEY is Triaged: Bug, medium severity (triaged by Jev).", integration: "Slack Web API through the desk's bot token", sub: "The desk reads the latest Triage: comment the way the planner's gate does (triagedMessage). A desk-filed ticket's first verdict posts nothing here (its Filed post carried it); the root still moves to ⏳. For a Jira-filed plannable verdict: KEY is Triaged: Bug, medium severity (triaged by Jev), from the Triage: comment's Triaged by: line, with no scores. Nothing after it: the planner crumb shows the run. The filer's message keeps 👀; a gated verdict (needs info, question, duplicate) sets ❓. For triage needs_info it posts KEY is Triaged, but triage needs more information: … with Next: reply here with it, and marks awaiting-info/<channel>:<ts> as triage_needs_info. For a question: KEY is Triaged as a question, so the planner skips it. For a duplicate: KEY is Triaged as a duplicate of KEY, so the planner skips it. A planner run takes minutes; this line is the sign it started, so nobody needs to bounce a plan-eligible ticket with plan KEY." },
+      { phase: "chain", actor: "jira", target: "planner", title: "Ticket enters Triaged", tag: "issue_updated", effect: "Planner session for TLSSN-42", store: "pending plan/<KEY>:Triaged:<changelog.id>", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The slug's TLSSN Automation rule posts a jira:issue_updated status body to /v1/channels/webhook/ on factory-planner. The handler checks the header secret (or an HMAC). planFromStatus() looks for a status changelog item into Triaged. The ticket's current status must still be Triaged, and the project must be allowed. The latest Triage: verdict must be bug or feedback, without Needs info or Duplicate of, and not kind question. A later Detail from Slack: KEY comment answers a needs-info verdict and planning proceeds. A question after a detail still skips. A ticket with no Triage: comment, or whose comments cannot be read, is planned without a verdict. The handler claims plan/TLSSN-42:Triaged:<changelog.id> as pending (read then put, no compare-and-set), then starts a session pinned to the issue key. Once the session starts, the claim becomes started with the session id. A redelivery carries the same changelog id and finds the claim. A pending claim older than 10 minutes is taken over with a put and planned again. If the session never starts, the claim is released. A replan is a new transition with a new id, so it passes. A move from Planned is a replan. So is a re-entry with a Plan: comment already on the ticket, which covers the desk's bounce through To Do." },
+      { phase: "chain", actor: "planner", title: "read_ticket, then plan", tag: "Jira read, local clone", store: "plan claim started", integration: "Factory Atlassian team MCP read; read, grep, glob, ls, git_history on a local serve only", sub: "read_ticket calls getJiraIssue for the issue and its Triage: comment. The planner then plans the way pstack does. It writes a mental model, sorts the reasons behind the current code into Preserve, Change, Avoid, and Risk, screens two or more candidate designs, and picks one. Hosted, there is no clone (FACTORY_PLANNER_CHECKOUT unset), so the planner plans from the ticket and says so in the plan. The code tools apply on a local serve only." },
+      { phase: "chain", actor: "planner", target: "jira", title: "record_plan, then moves", tag: "Factory Atlassian", effect: "Plan: comment ending in Brief:, then Planned", store: "plan artifact", integration: "Factory Atlassian team MCP, write, and planner artifacts", sub: "The tool writes to the session's ticket whatever key the model typed. It posts the plan as a Plan: comment on tickets in the configured projects only. The comment ends with a Brief: section, which the tool builds from the plan without a model turn. It stores one plan artifact per ticket. Before any of that it reads the ticket's status: every entry into Triaged opens its own session, so when this session finds the ticket out of Triaged (another session planned it first, or it has been approved and launched) it writes no comment, stores nothing, and moves nothing. The planner then moves the ticket to Planned, only from Triaged. The status change is the handoff. It does not call the desk." },
+      { phase: "chain", actor: "planner", target: "jira", title: "Or: Needs info, or Plan stopped", tag: "Factory Atlassian", effect: "Needs info: KEY, or Plan stopped: KEY with Why:; stays Triaged", store: "plan-outcome/<session>", integration: "Factory Atlassian team MCP, write", sub: "When search_sandbox finds no sign of the claimed failure on the sandbox, record_needs_info writes Needs info: KEY with what the ticket claimed, what the ref shows, and what it searched, once per planning run. When a run ends with neither a plan moved to Planned nor that verdict (the run failed, record_plan refused the plan, or the plan landed but did not move), the plan-outcome hook writes Plan stopped: KEY with one Why: line. Either way the ticket stays Triaged and no status webhook fires, so the desk's comment rule is what tells the thread." },
+      { phase: "chain", actor: "jira", target: "desk", title: "Comment reaches the desk", tag: "comment_created", effect: "Desk Jira channel, no model turn", store: "claim announced/<KEY>:Needs info:<comment id>", integration: "TLSSN Automation rule factory-desk-comments, X-Factory-Webhook-Secret", sub: "A fifth TLSSN rule, on Issue commented, posts a comment_created body to the desk's /v1/channels/jira/. First lines that wake it: Needs info: KEY, Plan stopped: KEY, Triage stopped: KEY, Launch failed:, Approved without a plan …, and In Review|Done not set from …. Every other comment is ignored before any Jira read. For Needs info the desk posts what the planner checked and searched, then Next: reply here with a file path, error message, or steps that fail on the sandbox. It marks awaiting-info/<channel>:<ts> as needs_info. Plan KEY is only the fallback if someone edits the ticket in Jira instead. A Plan stopped line carries the Why: and does not mark awaiting." },
+      { phase: "chain", actor: "people", target: "slack", title: "Or: Alice replies with the missing detail", tag: "thread", effect: "In-thread detail, not plan KEY", integration: "Slack text", sub: "Anyone in the workspace may answer in the ticket's thread. The reply is not a desk command (approve/deny/plan/replan KEY or file, a filing request, a status question), not a bare thanks, not empty, and not from a bot or Slack Connect sender. yes and no count as answers. The ticket must still be Triaged. No Jira description edit and no @factory plan KEY are required." },
+      { phase: "chain", actor: "desk", target: "jira", title: "Desk adds the reply, re-Triaged", tag: "takeThreadDetail", effect: "Detail from Slack: KEY, then To Do → Triaged", store: "lease thread-detail/<channel>:<ts>", integration: "Factory Atlassian team MCP, host-only", sub: "takeThreadDetail runs before the model. It comments Detail from Slack: KEY with who replied and the plain text (max 4000), then moveToPlanner: if already Triaged, bounce To Do → Triaged; otherwise one move to Triaged. On success it clears awaiting and posts Added your reply to KEY and sent it back to the planner, plus a Jira link when the site URL is known. The new Triaged entry wakes the planner again; a later Detail from Slack: comment strips a needs-info verdict so planning proceeds. If the comment lands but the bounce fails, the desk keeps awaiting and tells her to say @factory plan KEY or move To Do → Triaged in Jira." },
+      { phase: "chain", actor: "jira", target: "desk", title: "Ticket enters Planned", tag: "issue_updated", effect: "Desk Jira channel, no model turn", store: "claim announced/<KEY>:<status>:<changelog.id>", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The slug's TLSSN Automation rule posts a jira:issue_updated status body to /v1/channels/jira/ on factory-desk. The handler checks the header secret (or an HMAC). decideStatusEvent() acts on a status changelog item into Triaged, Planned, Approved, In Progress, In Review, or Done. This one is Planned. A move into Planned from Approved or later posts a move-back line instead of the plan. The handler calls announce_plan through callTool, and that tool claims announced/TLSSN-42:Planned:<changelog.id> with a read-back lease (no compare-and-set) after the thread lookup. With no thread and no intake channel, nothing is claimed. It starts no model turn. The planner does not call the desk." },
+      { phase: "chain", actor: "desk", target: "slack", title: "Desk posts in the thread", tag: "host.slack", effect: "Phone-sized plan post, React ✅ to start the build or ❌ to stop", integration: "Slack Web API through the desk's bot token", sub: "The desk looks up ticket/TLSSN-42 in host.kv and posts into the thread that filed the ticket. If the ticket was filed in Jira directly, it posts to FACTORY_DESK_INTAKE_CHANNEL instead. With neither, it posts nothing. On the live desk FACTORY_DESK_INTAKE_CHANNEL is #mars-eng-intake (C0EXAMPLE1). The desk reads the latest Plan: comment and posts Block Kit with a text fallback: summary, approach, areas (the evidence file list becomes a count), test plan, risk, and size, lists cut at six items. The worker brief is not posted (it made TLSSN-27's post a phone-screen wall with broken code fences); a link line points to the ticket and to the Plan: comment as Full plan and worker brief. It ends with @Alice, react ✅ to start the build or ❌ to stop, or reply approve / deny KEY. The desk records the post as a reaction target. The filer's message moves 👀 → 📝. Only the filer can decide here; moving the card to Approved in Jira also approves it. A Jira-filed ticket, or a Slack-filed ticket with no originator on record, can only be approved on the board. If chat.postMessage throws, the claim is released so a redelivery can post." },
+
+      { phase: "approve", actor: "people", target: "slack", title: "Alice reacts ✅ on the plan", tag: "reaction_added", effect: "✅ on the recorded plan post", integration: "Slack reaction_added (reactions:read)", gate: "Plan approval", sub: "Only the bound filer's reaction, in the ticket's own thread, counts. ✅ builds it; ❌ writes Denied in Slack by <name> and the ticket stays Planned; a 👍 does nothing. A plain approve reply (no mention) does the same as ✅. replan KEY sends it back to the planner." },
+      { phase: "approve", actor: "desk", target: "jira", title: "Host code approves the ticket", tag: "approvePlanned", effect: "Planned \u2192 Approved", store: "approved-in-slack/<KEY>, approve-ticket/<KEY>", integration: "Factory Atlassian team MCP, host-only", sub: "approvePlanned takes the ticket's one decision hold (approve-ticket/KEY), so a ✅ plus a typed approve, or a redelivery, is one move and one starting implementation… crumb. It records approved-in-slack/KEY and moves Planned → Approved with transitionFrom. No model turn. The desk launches nothing." },
+      { phase: "approve", actor: "desk", target: "slack", title: "Approved webhook stays quiet", tag: "announceApproved", effect: "No Approved line after a Slack approval", store: "approved-in-slack/<KEY> silences 10m", integration: "Desk Jira channel", sub: "The Approved transition reaches the desk through its Automation rule. announceApproved posts nothing while the Slack-approval record is under ten minutes old, so the next beat is In Progress. A board drag still posts KEY is Approved." },
+      { phase: "approve", actor: "jira", target: "worker", title: "Ticket enters Approved", tag: "issue_updated", effect: "Worker run, no model turn", store: "pending implement/<KEY>", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The slug's TLSSN Automation rule posts a jira:issue_updated status body to /v1/channels/jira/ on factory-worker. The handler checks the header secret (or an HMAC). decideApproved() checks for a status changelog item into Approved, a current status of Approved, and a project in FACTORY_JIRA_PROJECTS. It reads the latest Plan: comment and takes the text after the last Brief: heading. With no Brief:, it comments that the ticket was approved without a plan and nothing launched, and stops. It claims implement/TLSSN-42 as pending (read then put, no compare-and-set; two racing deliveries can both launch). A claim lost to launched is a duplicate. The worker then repairs a missing Implementing: comment or move, and launches nothing. A pending claim younger than 10 minutes is in flight, and the delivery stops. An older one is taken over with a put and launched again. That retry relies on the launch carrying the same idempotencyKey, whose dedupe is unverified." },
+      { phase: "approve", actor: "worker", target: "cloud", title: "Worker launches the agent", tag: "Agent.create", effect: "Cloud agent from the brief", store: "launched implement/<KEY>", integration: "@cursor/sdk Agent.create, Cursor cloud", sub: "Agent.create from @cursor/sdk builds the handle with cloud.repos set to FACTORY_SANDBOX_REPO (cursor-demo-lab/marsbank) at FACTORY_SANDBOX_REF (default main), autoCreatePR false (the first send ends with a ready-PR handoff, so the agent opens the PR ready, never a draft), and model claude-opus-5-5 as the full variant context=300k, effort=high, fast=false. The first send carries the brief verbatim and idempotencyKey implement/TLSSN-42. The same key is meant to stop a second launch at the platform if the VM dies before the kv write; that is unverified. If create or that send throws, the worker deletes the claim and rethrows. Otherwise it writes implement/TLSSN-42 as launched with the agent id and the https://cursor.com/agents/<id> URL, and commented and moved both false. Only the worker launches cloud agents on the sandbox repository. It authenticates with the pod's CURSOR_API_KEY, which is bound to factory-worker's own deployment service account. The first hosted launches (TLSSN-8) were refused as invalid_model with an effort-only variant; with the full variant the worker launched and moved TLSSN-8, then TLSSN-9 on the main release, to In Progress (proven live)." },
+      { phase: "approve", actor: "worker", target: "jira", title: "Worker comments, then moves", tag: "Factory Atlassian", effect: "Implementing: <agent URL>, then In Progress", store: "commented, then moved", integration: "Factory Atlassian team MCP, host-only", sub: "The worker comments Implementing: with the agent URL and sets commented. Only after that comment lands does it move the ticket to In Progress, then it sets moved. The desk reads the URL from that comment. If the comment fails, the ticket stays Approved. A later Approved delivery posts the missing comment and then moves the ticket. If only the move failed, a later delivery moves the ticket while it is still Approved. A ticket someone has moved on stays where it is. A ticket that is approved, withdrawn, and approved again does not launch twice." },
+      { phase: "approve", actor: "jira", target: "desk", title: "Ticket enters In Progress", tag: "issue_updated", effect: "Desk Jira channel, no model turn", store: "claim announced/<KEY>:<status>:<changelog.id>", integration: "TLSSN Automation rule, X-Factory-Webhook-Secret", sub: "The same desk route acts on a status item into In Progress. It calls announce_progress through callTool, and that tool claims announced/TLSSN-42:In Progress:<changelog.id> with a read-back lease (no compare-and-set). The worker does not call the desk." },
+      { phase: "approve", actor: "desk", target: "slack", title: "Desk posts In Progress, once", tag: "host.slack", effect: "Exactly one KEY is In Progress post with the agent URL", integration: "Slack Web API through the desk's bot token", sub: "The desk reads the latest Implementing: comment on the ticket. It posts KEY is In Progress. Implementation started: <url>. If the thread's newest message is the desk's own KEY is approved… line from the last fifteen minutes, it edits that message instead (conversations.replies, then chat.update); any doubt posts as usual. The filer's message moves to 🛠️. After a Slack approval this is the thread's next beat. With no Implementing: comment it posts nothing. If chat.postMessage throws, the claim is released." },
+
+      { phase: "review", actor: "cloud", target: "github", title: "Cloud agent opens the PR", tag: "cloud VM to GitHub", effect: "Pull request TLSSN-42", integration: "Cursor cloud to GitHub", sub: "The agent the worker launched works in cursor-demo-lab/marsbank and follows the plan. Where the code disagrees with the plan, it stops and says so in the pull request description. The branch name starts with the ticket key and the title reads KEY: <what>. Per the planner brief the description opens with Jira: https://…/browse/KEY, then Slack: <thread permalink> when the ticket has one, then short sections." },
+      { phase: "review", actor: "github", target: "worker", title: "pull_request opened", tag: "Cursor relay, read", effect: "Worker task, no model turn", integration: "Cursor relay to the factory-worker GitHub channel, cursorAccount read", sub: "factory-worker watches cursor-demo-lab/marsbank through a read-only githubChannel({ cursorAccount }) subscribed to pull_request only, deployed with --cursor-events-repo cursor-demo-lab/marsbank. decidePullRequest() counts only the implement pull request: on FACTORY_SANDBOX_REPO, into FACTORY_SANDBOX_REF, head branch starting with a FACTORY_JIRA_PROJECTS key, or opened by cursor[bot] with the key at the start of the title. opened, reopened, ready_for_review, and synchronize all mean In Review, so a push to a pull request that opened before this path shipped catches up. The hook returns a task that runs after the 202." },
+      { phase: "review", actor: "worker", target: "jira", title: "Worker links the PR, then In Review", tag: "Factory Atlassian", effect: "Pull request: <url>, then In Progress \u2192 In Review", store: "claim pr-status/<KEY>/in_review/<repo>#N", integration: "Factory Atlassian team MCP, host-only", sub: "The task stops unless implement/TLSSN-42 is launched, so only a ticket this worker launched can move. It claims pr-status/TLSSN-42/in_review/cursor-demo-lab/marsbank#N (read then put, no compare-and-set), comments Pull request: https://github.com/owner/repo/pull/N unless a first line starting Pull request: already names that URL (plain, markdown, or Jira card), then moves the ticket to In Review only while it is In Progress. A comment failure does not block the move. A ticket already in In Review counts as moved. Any other status stays where it is, the claim is released, and the worker leaves one In Review not set from owner/repo#N: … comment. A redelivery or a later push finds the moved claim and writes nothing. No Jira Automation or GitHub for Jira rule makes this move." },
+      { phase: "review", actor: "desk", target: "slack", title: "Desk posts In Review", tag: "host.slack", effect: "KEY is In Review: owner/repo#N is open", store: "claim announced/<KEY>:<status>:<changelog.id>", integration: "Desk Jira channel, then the Slack Web API", sub: "The worker's move reaches the desk's Jira route through its Automation rule, which must list In Review. The desk claims announced/TLSSN-42:In Review:<changelog.id>, reads the latest Pull request: <url> comment (latestPullRequestComment), and posts KEY is In Review: <url|owner/repo#N> is open. The filer's message moves to 🔍. Bugbot (Cursor product) checks it, the security reviewer (BDK) reviews it, change-monitor (Cursor product) tracks the rollout, and pr-autofixer (BDK) drives it until CI is green. A human reviews and merges it. A card moved by hand, or an unreadable comment list, gets KEY is In Review: the pull request is open. … The worker does not call the desk." },
+      { phase: "review", actor: "settings", target: "github", title: "Bugbot runs a check", tag: "Cursor product", effect: "Checks run Cursor Bugbot", integration: "Cursor product, repo toggle", sub: "Bugbot is a Cursor product feature, not a BDK agent or a Jira Automation rule. It is enabled per-repo through the Cursor dashboard, often on the same Cursor GitHub App installation the factory uses. It posts a GitHub Checks run named Cursor Bugbot on every pull request head. When clean, the run conclusion is success and the summary says no issues found; there is no Conversation comment. When it finds issues, the run conclusion names the findings and a review comment may appear. Look on the Checks tab, not Conversation, to confirm Bugbot ran. On marsbank PR #25 (TLSSN-28, head f3b78d3), the check completed with conclusion success and no Conversation comment. Run URL pattern: https://github.com/cursor-demo-lab/marsbank/runs/<id>. No agent queues it." },
+      { phase: "review", actor: "github", target: "security", title: "pull_request event", tag: "BDK: Cursor relay", effect: "Reads pr/diff.patch", integration: "BDK: Cursor relay, cursorAccount (default pr-write)", sub: "factory-security-reviewer is a BDK agent (hosted Agent SDK slug from security-reviewer/). It watches cursor-demo-lab/marsbank through githubChannel({ cursorAccount }) and --cursor-events-repo. It runs on opened, reopened, synchronize, and ready_for_review events. A draft waits for ready_for_review unless it is a factory draft: its head branch starts with a FACTORY_JIRA_PROJECTS key, or its title does and cursor[bot] opened it. Each review reads the compare diff pinned to the event's head. A head already reviewed is skipped on a best-effort basis, and a diff over 150,000 chars is reviewed once as INCOMPLETE. It keeps one session per pull request, keyed github-pr:owner/repo#N. It logs each delivery and its decision as one factoryDebug github-event line." },
+      { phase: "review", actor: "security", target: "github", title: "post_findings", tag: "GitHub, pr-write", effect: "Security review comment", integration: "BDK: cursorAccount GitHub (default pr-write)", sub: "factory-security-reviewer is a BDK agent (hosted Agent SDK slug from security-reviewer/), not a Cursor product feature. It posts one review of type COMMENT at the event's head (commit_id pinned; the body says Security only, on head `abc1234`; Bugbot covers correctness. A new push gets a new review.) starting ## Security review then **Verdict:** CLEAN, FINDINGS, or INCOMPLETE. On marsbank PR #25 (TLSSN-28), the review was CLEAN (pullrequestreview-5322848751). It appears as a cursor[bot] review in both Reviews and Conversation, distinct from Bugbot (Checks tab) and change-monitor (Conversation sticky). It is advisory and cannot block the merge. Proven on the worker's TLSSN-9 draft, marsbank #13 (**Verdict:** FINDINGS)." },
+      { phase: "review", actor: "settings", target: "github", title: "Change-monitor updates plan", tag: "Cursor product", effect: "Sticky comment @change-monitor", integration: "Cursor product, platform feature", sub: "Change-monitor is a Cursor product feature, not a BDK agent, not the security review, and not Bugbot. It maintains a sticky issue comment on the pull request with a rollout plan, identifiable by Mention @change-monitor in the visible text and cursor:sticky:change-monitor-plan HTML comment markers in the source. The comment is posted by cursor[bot] and appears in Conversation. It is distinct from the security review (which starts ## Security review and is a pull request review, not an issue comment) and from Bugbot (which is a Checks run, not a comment). On a live PR it may appear as the only cursor[bot] Conversation comment when Bugbot is clean and the security review is in Reviews. It is advisory." },
+      { phase: "review", actor: "github", target: "desk", title: "Gates settle", tag: "Cursor relay, read", effect: "Desk task, no model turn", store: "claim review/<repo>#N/<sha>/<gate>", integration: "Cursor relay to the factory-desk GitHub channel, cursorAccount read", sub: "factory-desk watches cursor-demo-lab/marsbank through a read-only githubChannel({ cursorAccount }) on FACTORY_REPOS, deployed with --cursor-events-repo. Hosted v2 forwards pull_request, check_suite completed (the cursor app's suite is Bugbot), and workflow_run completed (CI), but no check_run; pull_request_review is subscribed but unverified hosted. Each wake re-reads the PR at its head: open, a factory branch or cursor[bot] title with the key, a ticket/<KEY> thread already bound, and the ticket's Pull request: comment naming this PR. Settled means the Cursor Bugbot check run completed, a cursor[bot] review on this head opens ## Security review / **Verdict:**, or every Actions run completed. Each gate is claimed once per PR, head SHA, and gate, so a re-run or a redelivery posts nothing. When Bugbot and CI settle before the security review, the desk re-reads it after 1, 3, and 6 minutes." },
+      { phase: "review", actor: "desk", target: "slack", title: "Desk posts a review update", tag: "host.slack", effect: "KEY review update on <sha>: 🐛 Bugbot / 🔒 Security review / 🏗️ CI / 📡 Change review / 🔧 Autofix", integration: "Desk GitHub channel, then the Slack Web API", sub: "One reply in the ticket's thread for every gate that settled since the thread last heard about that head, one bullet each, always in the order 🐛 Bugbot, 🔒 security review, 🏗️ CI, 📡 change review, 🔧 autofix: Bugbot CLEAN or N findings with the run link, the security verdict (CLEAN, FINDINGS: 1 high, 1 medium (top: …), or INCOMPLETE) with the review link, CI passing or failing: <jobs> with the failed job link. In-progress and cancelled runs say nothing. It never opens an intake root, never edits the status line, and never writes to GitHub. Change-monitor shows as soon as its sticky PR comment is there: running while Pending or Monitoring, then its result edits that same line in place." },
+
+      { phase: "fix", actor: "github", target: "fixer", title: "A check fails", tag: "BDK: relay check_suite", effect: "drive_pr starts on the PR", store: "auto-drive claim, then affinity binding", integration: "BDK: Cursor relay to factory-pr-autofixer GitHub channel, contents-write", sub: "factory-pr-autofixer is a BDK agent (hosted Agent SDK slug from pr-autofixer/). It watches cursor-demo-lab/marsbank through githubChannel({ cursorAccount }) and --cursor-events-repo. Its GitHub channel receives a check_suite or workflow_run that completed with failure, timed_out, action_required, or startup_failure on a pull request nobody drives yet. Hosted v2 never forwards check_run, and Actions never emit status. It fetches the head and finds a ticket key at the start of the branch name or the title. The keys come from FACTORY_JIRA_PROJECTS (override PR_AUTOFIXER_AUTO_DRIVE_PROJECTS on a local serve); an empty list turns the automatic drive off. It claims auto-drive:owner/repo#N with a read-back lease (no compare-and-set), so several red events for the same push usually start one drive. A claim older than 10 minutes with no drive bound is retaken with a put, so a later red check tries again. It returns a task that calls its own drive_pr. The host holds the delivery open until the start has answered. If nothing starts, the claim is released. Later events for the same pull request wait 3 seconds in webhook-buffer and resume the same conversation. pending: a first red check_suite on the current release. marsbank #6 went red before it and has no fixer session." },
+      { phase: "fix", actor: "settings", target: "slack", title: "Slack app posts the failure", tag: "GitHub Slack app", effect: "Post to #factory-escalations", integration: "GitHub Slack app", sub: "This post is for people to read. Nothing in the factory subscribes to it. For a pull request the factory did not open, a person types factory: drive on it in GitHub." },
+      { phase: "fix", actor: "people", target: "github", title: "A person types factory: drive", tag: "manual override", effect: "Fixer drives the PR", integration: "GitHub comment, human author", gate: "Manual opt-in", sub: "Only for a pull request the factory did not open; a factory pull request is driven on its first red check with no opt-in. The person types factory: drive as a comment on the pull request in GitHub. Cursor's hosted GitHub webhook ingress drops every bot-authored comment (type Bot or App, a [bot] login, or the Cursor bot) before the agent, so only a person's comment wakes the fixer. Locally, July drops only the fixer's own botName comments. Asked in Slack to fix a pull request, the desk replies with this instruction and writes nothing to GitHub. The fixer's onComment drives only when the author's association is OWNER, MEMBER, or COLLABORATOR (never a bot) and the repo is in FACTORY_REPOS; it then claims auto-drive:owner/repo#N, and drives. It ignores its own comments through botName factory-pr-autofixer. pending: a person's factory: drive that confirms its comments post as factory-pr-autofixer[bot]." },
+      { phase: "fix", actor: "fixer", target: "cloud", title: "Fixer starts a cloud run", tag: "cloud VM, write tier", effect: "VM checks out the PR", integration: "July cloud-runtime session, contents-write", sub: "drive_pr opens a July session on the cloud runtime against the PR head (send with cloud options, autoCreatePR false), not @cursor/sdk. The agent.bound hook records affinity/owner/repo#N. It also arms a merge-conflict reminder. It pushes only fixes it has verified. It never merges, turns on auto-merge, or force-pushes. pending: no hosted drive has run yet." },
+      { phase: "fix", actor: "cloud", target: "github", title: "VM pushes fixes", tag: "GitHub, write tier", effect: "CI passes", integration: "GitHub, contents-write", sub: "Each push runs CI and Bugbot again, and wakes the security reviewer on synchronize." },
+      { phase: "fix", actor: "desk", target: "slack", title: "Desk posts the fix push", tag: "host.slack", effect: "KEY review update on <sha>: pr-autofixer pushed <sha> after CI failed on <sha>; checks are running", store: "claim review/<repo>#N/<sha>/autofix", integration: "Desk GitHub channel (pull_request synchronize), then the Slack Web API", sub: "A synchronize pushed by a bot onto a head whose Actions runs had failed. Inferred: the desk cannot read the fixer's claim, and the fixer's push identity is not confirmed yet, so a push that arrives as a person gets no line. The new head's Bugbot, security, and CI results follow as their own review update." },
+      { phase: "fix", actor: "settings", target: "github", title: "Branch protection", tag: "GitHub setting", effect: "pending: not enforced", integration: "GitHub setting", sub: "pending: not enforced. cursor-demo-lab is on GitHub Free and marsbank is private, so branch protection and rulesets return 403. A person checks CI (CI / test), Bugbot, and one review before merging. Nothing merges by itself." },
+      { phase: "fix", actor: "people", target: "github", title: "A reviewer merges", tag: "GitHub", effect: "Merged", integration: "GitHub", gate: "Review and merge", sub: "The reviewer reads the pull request, whose description restates the plan and the test results, then approves and presses Merge. No agent merges, and nobody turns on auto-merge: the factory counts only a person's merge." },
+      { phase: "fix", actor: "github", target: "worker", title: "pull_request closed, merged", tag: "Cursor relay, read", effect: "Worker task, no model turn", integration: "Cursor relay to the factory-worker GitHub channel, cursorAccount read", sub: "decidePullRequest() reads the same implement pull request checks, then requires merged, auto_merge not set, and a person as both the delivery's sender and merged_by: GitHub type User with no [bot] login. A merge by cursor[bot], another app, or GitHub auto-merge, and a close without a merge, move nothing." },
+      { phase: "fix", actor: "worker", target: "jira", title: "Worker moves to Done", tag: "Factory Atlassian", effect: "In Review \u2192 Done", store: "claim pr-status/<KEY>/done/<repo>#N", integration: "Factory Atlassian team MCP, host-only", sub: "Same guard and claim as In Review, keyed pr-status/TLSSN-42/done/cursor-demo-lab/marsbank#N. If a Pull request: comment for this URL is already on the ticket, merge reports linked: present and does not write a second. It moves the ticket to Done from In Review. A ticket still in In Progress (its opened event was missed), or one that drifted back to Approved, Planned, Triaged, or To Do after the launch (TLSSN-21), moves to In Review and then to Done, so the thread hears both. A status outside the factory's seven stays put with a Done not set from note. A failed Jira write releases the claim and rethrows, so hosted admission can retry. Dragging the card to Done by hand has the same effect on the thread." },
+      { phase: "fix", actor: "desk", target: "slack", title: "Desk posts Done", tag: "host.slack", effect: "KEY is Done: owner/repo#N was merged by <person>.", store: "claim announced/<KEY>:<status>:<changelog.id>", integration: "Desk Jira channel, then the Slack Web API", sub: "The move reaches the desk through its Automation rule, which must list Done. The desk claims announced/TLSSN-42:Done:<changelog.id>, reads the same Pull request: comment and the latest Merged by: <login> comment the worker leaves, and posts KEY is Done: <url|owner/repo#N> was merged by <login>. (just was merged. when no Merged by: line is readable). Without a Pull request: comment: KEY is Done. No pull request link is on the ticket. The filer's message moves 🔍 → ✅." }
+    ];
+
+    // Gap of 36: an arrow leaves its box for 8px, turns, travels the gap, turns, and runs 19px into the
+    // head before the target. Both runs read as runs, not as a head glued onto a vertical line.
+    const COL = 154, GAP = 42, LABEL = 110, TOP = 10, ROW = 72, NODE_H = 56, EFFECT_H = 24;
+    const EXIT = 16;   // the vertical run sits this far past the source box's right edge
+    const HEAD_L = 8;  // arrowhead length; the line stops inside it, so no stroke passes the tip
+    const HEAD_W = 6;
+    const NODE_W = COL - GAP;
+    const laneById = Object.fromEntries(lanes.map((lane) => [lane.id, lane]));
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const mark = (s) => esc(s).replace(/\bpending:/g, '<span class="pending">pending:</span>');
+
+    // A head is drawn, not a marker: a marker sits on the path's end point, which leaves the
+    // stroke running all the way to the tip and flaring past the point. Drawing it lets the line
+    // stop one pixel inside the head.
+    function arrowHead(x, y, dir, cls) {
+      const w = HEAD_W / 2;
+      const d = dir === "right" ? `M${x - HEAD_L},${y - w} L${x},${y} L${x - HEAD_L},${y + w} z`
+        : dir === "down" ? `M${x - w},${y - HEAD_L} L${x},${y} L${x + w},${y - HEAD_L} z`
+        : `M${x - w},${y + HEAD_L} L${x},${y} L${x + w},${y + HEAD_L} z`;
+      return `<path class="head${cls || ""}" d="${d}"/>`;
+    }
+
+    // Wrapping counts pixels, not characters: "Triage: sentinel" and "Hook hands off" are the
+    // same length in characters and 10px apart on screen, which is how text used to run past a box.
+    const gauge = (() => { try { return document.createElement("canvas").getContext("2d"); } catch { return null; } })();
+    const SANS = (() => { try { return getComputedStyle(document.body).fontFamily; } catch { return "sans-serif"; } })();
+    const TITLE_FONT = `650 11.5px ${SANS}`, TAG_FONT = `10px ${SANS}`, PILL_FONT = `10.5px ${SANS}`, GATE_FONT = `700 8.5px ${SANS}`;
+    const textWidth = (text, font) => { if (!gauge) return String(text).length * 5.4; gauge.font = font; return gauge.measureText(text).width; };
+
+    function clip(text, font, max) {
+      let out = String(text);
+      if (textWidth(out, font) <= max) return out;
+      while (out.length > 1 && textWidth(out + "\u2026", font) > max) out = out.slice(0, -1);
+      return out.replace(/[\s,\u00b7]+$/, "") + "\u2026";
+    }
+
+    // widths is one limit per line; the last entry covers every line after it. A word wider than the
+    // narrowest line, such as a host.kv claim key, also breaks after "/", ":", and "-" with no space added.
+    function wrap(text, font, widths, maxLines) {
+      const narrow = Math.min(...widths);
+      const words = [];
+      String(text).split(/\s+/).filter(Boolean).forEach((word) => {
+        const parts = textWidth(word, font) > narrow ? word.split(/(?<=[/:-])/) : [word];
+        parts.forEach((part, k) => words.push({ text: part, sep: k ? "" : " " }));
+      });
+      const limit = (i) => widths[Math.min(i, widths.length - 1)];
+      const lines = [];
+      let line = "", i = 0;
+      while (i < words.length) {
+        const next = line ? line + words[i].sep + words[i].text : words[i].text;
+        if (line && textWidth(next, font) > limit(lines.length)) {
+          lines.push(line); line = "";
+          if (lines.length === maxLines) break;
+          continue;
+        }
+        line = next; i += 1;
+      }
+      if (line && lines.length < maxLines) { lines.push(line); i = words.length; }
+      if (i < words.length) lines[lines.length - 1] += words.slice(i).map((word) => word.sep + word.text).join("");
+      return lines.map((entry, k) => clip(entry, font, limit(k)));
+    }
+
+    // Horizontal out of the source, a rounded elbow, vertical along the gap, a rounded elbow, horizontal into the target.
+    function elbow(x1, y1, mid, x2, y2, r) {
+      const down = y2 > y1 ? 1 : -1;
+      const rr = Math.min(r, Math.abs(y2 - y1) / 2);
+      return [
+        `M${x1},${y1}`,
+        `L${mid - rr},${y1}`,
+        `Q${mid},${y1} ${mid},${y1 + down * rr}`,
+        `L${mid},${y2 - down * rr}`,
+        `Q${mid},${y2} ${mid + rr},${y2}`,
+        `L${x2},${y2}`
+      ].join(" ");
+    }
+
+    function drawPhase(phase) {
+      const own = steps.map((step, i) => ({ step, n: i + 1 })).filter(({ step }) => step.phase === phase.id);
+      const used = new Set();
+      own.forEach(({ step }) => { used.add(step.actor); if (step.target) used.add(step.target); if (step.store) used.add("state"); });
+      const rows = lanes.filter((lane) => used.has(lane.id));
+      const rowOf = Object.fromEntries(rows.map((lane, i) => [lane.id, i]));
+      const width = LABEL + own.length * COL + GAP;
+      const height = TOP + rows.length * ROW + 10;
+      const nodeXY = (col, laneId) => ({ x: LABEL + col * COL, y: TOP + rowOf[laneId] * ROW + (ROW - NODE_H) / 2 });
+      const effectXY = (col, laneId) => ({ x: LABEL + col * COL, y: TOP + rowOf[laneId] * ROW + (ROW - EFFECT_H) / 2 });
+
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(phase.title)} phase">`;
+      rows.forEach((lane, i) => {
+        const y = TOP + i * ROW;
+        svg += `<rect class="lane-band ${i % 2 ? "odd" : "even"}" x="0" y="${y}" width="${width}" height="${ROW}"/>`;
+        svg += `<line class="lane-line" x1="0" y1="${y}" x2="${width}" y2="${y}"/>`;
+        // A slug label is split after its "factory-" prefix, or the longer ones run into a first-column pill.
+        const [lead, rest] = lane.label.startsWith("factory-") ? ["factory-", lane.label.slice(8)] : ["", lane.label];
+        svg += lead
+          ? `<text class="lane-label ${lane.kind}" x="14" y="${y + ROW / 2 - 2}">${esc(lead)}<tspan x="14" dy="12">${esc(rest)}</tspan></text>`
+          : `<text class="lane-label ${lane.kind}" x="14" y="${y + ROW / 2 + 4}">${esc(lane.label)}</text>`;
+      });
+
+      // Step flow arrows between consecutive actor nodes, behind everything else.
+      own.forEach(({ step }, col) => {
+        if (col === own.length - 1) return;
+        const next = own[col + 1].step;
+        const a = nodeXY(col, step.actor), b = nodeXY(col + 1, next.actor);
+        const PAD = 3, TIP = 4, R = 4;
+        const y1 = a.y + NODE_H / 2, y2 = b.y + NODE_H / 2;
+        const x1 = a.x + NODE_W + PAD, tipX = b.x - TIP, x2 = tipX - HEAD_L + 1, mid = a.x + NODE_W + EXIT;
+        const d = y1 === y2 ? `M${x1},${y1} L${x2},${y2}` : elbow(x1, y1, mid, x2, y2, R);
+        svg += `<path class="flow${next.reply ? " reply" : ""}" d="${d}"/>`;
+        svg += arrowHead(tipX, y2, "right", next.reply ? " reply" : "");
+      });
+
+      own.forEach(({ step, n }, col) => {
+        const actor = laneById[step.actor];
+        const a = nodeXY(col, step.actor);
+        const cx = a.x + NODE_W / 2;
+
+        // Effect pill in the target lane and, for a step that also writes factory state, a store pill.
+        // Pills chain away from the actor (actor → nearer pill → farther pill) so no connector crosses a pill.
+        const pills = [];
+        if (step.target && step.effect) pills.push({ laneId: step.target, text: step.effect, kind: laneById[step.target].kind, cls: "" });
+        if (step.store) pills.push({ laneId: "state", text: step.store, kind: "store", cls: " store" });
+        const placed = pills.map((pill) => {
+          const e = effectXY(col, pill.laneId);
+          const lines = wrap(pill.text, PILL_FONT, [NODE_W - 16], 3);
+          const h = EFFECT_H + 12 * (lines.length - 1);
+          const y = e.y - (h - EFFECT_H) / 2;
+          return { ...pill, x: e.x, y, h, lines, below: e.y > a.y };
+        });
+        for (const side of [true, false]) {
+          const chain = placed.filter((pill) => pill.below === side).sort((p, q) => (side ? p.y - q.y : q.y - p.y));
+          let fromY = side ? a.y + NODE_H + 3 : a.y - 3;
+          chain.forEach((pill) => {
+            const tipY = side ? pill.y - 4 : pill.y + pill.h + 4;
+            const toY = side ? tipY - HEAD_L + 1 : tipY + HEAD_L - 1;
+            svg += `<path class="act${pill.cls}" d="M${cx},${fromY} L${cx},${toY}"/>`;
+            svg += arrowHead(cx, tipY, side ? "down" : "up", pill.cls);
+            fromY = side ? pill.y + pill.h + 3 : pill.y - 3;
+          });
+        }
+        placed.forEach((pill) => {
+          svg += `<g class="k-${pill.kind}"><rect class="effect-box" x="${pill.x}" y="${pill.y}" width="${NODE_W}" height="${pill.h}" rx="${pill.lines.length > 1 ? 10 : 999}"/>`;
+          pill.lines.forEach((line, k) => { svg += `<text class="effect-text" x="${cx}" y="${pill.y + 16 + k * 12 - (pill.lines.length > 1 ? 1 : 0)}" text-anchor="middle">${esc(line)}</text>`; });
+          svg += `</g>`;
+        });
+
+        // Actor node on top.
+        // Line one clears the number badge; the lines under it start at the box's own padding.
+        const title = wrap(step.title, TITLE_FONT, [NODE_W - 34, NODE_W - 20], 2);
+        svg += `<g class="k-${actor.kind}${step.gate ? " k-gate" : ""}"><rect class="node-box" x="${a.x}" y="${a.y}" width="${NODE_W}" height="${NODE_H}"/>`;
+        svg += `<circle class="node-badge" cx="${a.x + 13}" cy="${a.y + 15}" r="8"/><text class="node-n" x="${a.x + 13}" y="${a.y + 18.5}" text-anchor="middle">${n}</text>`;
+        title.forEach((line, k) => { svg += `<text class="node-title" x="${a.x + (k ? 11 : 26)}" y="${a.y + 19 + k * 13}">${esc(line)}</text>`; });
+        // The GATE chip shares the bottom line with the tag, right-aligned and wholly inside the box,
+        // and the tag's own width is whatever the chip leaves.
+        const chipW = step.gate ? Math.ceil(textWidth("GATE", GATE_FONT)) + 15 : 0;
+        const tagMax = NODE_W - 20 - (chipW ? chipW + 7 : 0);
+        svg += `<text class="col-label" x="${a.x + 11}" y="${a.y + NODE_H - 9}">${esc(wrap(step.tag || step.integration, TAG_FONT, [tagMax], 1)[0])}</text>`;
+        if (step.gate) {
+          const chipX = a.x + NODE_W - 11 - chipW;
+          svg += `<rect class="gate-tab" x="${chipX}" y="${a.y + NODE_H - 20}" width="${chipW}" height="14" rx="7"/>`;
+          svg += `<text class="gate-label" x="${chipX + chipW / 2}" y="${a.y + NODE_H - 10}" text-anchor="middle">GATE</text>`;
+        }
+        svg += `<title>${esc(`${n}. ${step.title}. ${step.sub}${step.gate ? ` Human gate: ${step.gate}.` : ""} Integration: ${step.integration}.${step.store ? ` Stored: ${step.store}.` : ""}`)}</title></g>`;
+      });
+      svg += `</svg>`;
+
+      const section = document.createElement("section");
+      section.className = "phase";
+      section.id = `phase-${phase.id}`;
+      section.innerHTML = `<p class="kicker">Phase ${phases.indexOf(phase) + 1} · steps ${own[0].n} to ${own[own.length - 1].n}</p><h3>${esc(phase.title)}</h3><p class="lede">${mark(phase.lede)}</p><div class="board">${svg}</div>`;
+      return section;
+    }
+
+    const host = document.getElementById("phases");
+    phases.forEach((phase) => host.appendChild(drawPhase(phase)));
+
+    const tbody = document.querySelector("#steps-table tbody");
+    steps.forEach((step, i) => {
+      const lane = laneById[step.actor];
+      const tr = document.createElement("tr");
+      if (step.gate) tr.className = "gate";
+      const lands = step.target ? `<span class="who ${laneById[step.target].kind}">${esc(laneById[step.target].label)}</span><br><span style="color:var(--soft);font-size:13px">${esc(step.effect)}</span>` : "";
+      tr.innerHTML = `<td class="n">${i + 1}</td><td><span class="who ${lane.kind}">${esc(lane.label)}</span></td><td><strong>${esc(step.title)}</strong><br><span style="color:var(--soft)">${mark(step.sub)}</span></td><td>${lands}</td><td>${esc(step.integration)}</td><td>${step.store ? `<span class="who store">${esc(step.store)}</span>` : ""}</td><td>${step.gate ? esc(step.gate) : ""}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    const gates = document.getElementById("gates");
+    steps.forEach((step, i) => {
+      if (!step.gate) return;
+      const card = document.createElement("div");
+      card.className = "card gate";
+      card.innerHTML = `<p class="eyebrow" style="font-size:11px">Step ${i + 1} · ${esc(step.gate)}</p><strong>${esc(step.title)}</strong><span class="sub">${mark(step.sub)}</span>`;
+      gates.appendChild(card);
+    });
+  </script>
+</body>
+</html>

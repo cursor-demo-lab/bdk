@@ -1,0 +1,685 @@
+{
+  "source": "GET https://api.cursor.com/v1/models",
+  "recordedAt": "2026-09-23T21:47:32Z",
+  "note": "Recorded read-only. Each variant is one accepted id plus params combination for GET /v1/models (cloud catalog). Hosted grok-4.7 turns use the Model Deployment Registry instead: do not send catalog-only `context`. Live refresh needs a user API key.",
+  "models": [
+    {
+      "id": "auto-smart",
+      "parameters": {"optimize_for": ["intelligence", "balanced", "cost"]},
+      "variants": [
+        {"optimize_for": "intelligence"},
+        {"optimize_for": "balanced"},
+        {"optimize_for": "cost"}
+      ]
+    },
+    {
+      "id": "default",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "grok-4.7",
+      "parameters": {"context": ["256k", "500k"], "reasoning_effort": ["low", "medium", "high", "xhigh"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "256k", "reasoning_effort": "low", "fast": "false"},
+        {"context": "256k", "reasoning_effort": "low", "fast": "true"},
+        {"context": "256k", "reasoning_effort": "medium", "fast": "false"},
+        {"context": "256k", "reasoning_effort": "medium", "fast": "true"},
+        {"context": "256k", "reasoning_effort": "high", "fast": "false"},
+        {"context": "256k", "reasoning_effort": "high", "fast": "true"},
+        {"context": "256k", "reasoning_effort": "xhigh", "fast": "false"},
+        {"context": "256k", "reasoning_effort": "xhigh", "fast": "true"},
+        {"context": "500k", "reasoning_effort": "low", "fast": "false"},
+        {"context": "500k", "reasoning_effort": "low", "fast": "true"},
+        {"context": "500k", "reasoning_effort": "medium", "fast": "false"},
+        {"context": "500k", "reasoning_effort": "medium", "fast": "true"},
+        {"context": "500k", "reasoning_effort": "high", "fast": "false"},
+        {"context": "500k", "reasoning_effort": "high", "fast": "true"},
+        {"context": "500k", "reasoning_effort": "xhigh", "fast": "false"},
+        {"context": "500k", "reasoning_effort": "xhigh", "fast": "true"}
+      ]
+    },
+    {
+      "id": "grok-4.6",
+      "parameters": {"effort": ["low", "medium", "high", "xhigh"], "fast": ["false", "true"]},
+      "variants": [
+        {"effort": "low", "fast": "false"},
+        {"effort": "low", "fast": "true"},
+        {"effort": "medium", "fast": "false"},
+        {"effort": "medium", "fast": "true"},
+        {"effort": "high", "fast": "false"},
+        {"effort": "high", "fast": "true"},
+        {"effort": "xhigh", "fast": "false"},
+        {"effort": "xhigh", "fast": "true"}
+      ]
+    },
+    {
+      "id": "composer-2.5",
+      "parameters": {"fast": ["false", "true"]},
+      "variants": [
+        {"fast": "true"},
+        {"fast": "false"}
+      ]
+    },
+    {
+      "id": "claude-opus-5-5",
+      "parameters": {"context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "300k", "effort": "low", "fast": "false"},
+        {"context": "300k", "effort": "low", "fast": "true"},
+        {"context": "300k", "effort": "medium", "fast": "false"},
+        {"context": "300k", "effort": "medium", "fast": "true"},
+        {"context": "300k", "effort": "high", "fast": "false"},
+        {"context": "300k", "effort": "high", "fast": "true"},
+        {"context": "300k", "effort": "xhigh", "fast": "false"},
+        {"context": "300k", "effort": "xhigh", "fast": "true"},
+        {"context": "300k", "effort": "max", "fast": "false"},
+        {"context": "300k", "effort": "max", "fast": "true"},
+        {"context": "1m", "effort": "low", "fast": "false"},
+        {"context": "1m", "effort": "low", "fast": "true"},
+        {"context": "1m", "effort": "medium", "fast": "false"},
+        {"context": "1m", "effort": "medium", "fast": "true"},
+        {"context": "1m", "effort": "high", "fast": "false"},
+        {"context": "1m", "effort": "high", "fast": "true"},
+        {"context": "1m", "effort": "xhigh", "fast": "false"},
+        {"context": "1m", "effort": "xhigh", "fast": "true"},
+        {"context": "1m", "effort": "max", "fast": "false"},
+        {"context": "1m", "effort": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "claude-opus-4-8",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "parameters": {"context": ["272k", "1m"], "reasoning": ["none", "low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "272k", "reasoning": "none", "fast": "false"},
+        {"context": "272k", "reasoning": "none", "fast": "true"},
+        {"context": "272k", "reasoning": "low", "fast": "false"},
+        {"context": "272k", "reasoning": "low", "fast": "true"},
+        {"context": "272k", "reasoning": "medium", "fast": "false"},
+        {"context": "272k", "reasoning": "medium", "fast": "true"},
+        {"context": "272k", "reasoning": "high", "fast": "false"},
+        {"context": "272k", "reasoning": "high", "fast": "true"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "false"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "true"},
+        {"context": "272k", "reasoning": "max", "fast": "false"},
+        {"context": "272k", "reasoning": "max", "fast": "true"},
+        {"context": "1m", "reasoning": "none", "fast": "false"},
+        {"context": "1m", "reasoning": "none", "fast": "true"},
+        {"context": "1m", "reasoning": "low", "fast": "false"},
+        {"context": "1m", "reasoning": "low", "fast": "true"},
+        {"context": "1m", "reasoning": "medium", "fast": "false"},
+        {"context": "1m", "reasoning": "medium", "fast": "true"},
+        {"context": "1m", "reasoning": "high", "fast": "false"},
+        {"context": "1m", "reasoning": "high", "fast": "true"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "false"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "true"},
+        {"context": "1m", "reasoning": "max", "fast": "false"},
+        {"context": "1m", "reasoning": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gpt-5.5",
+      "parameters": {"context": ["272k", "1m"], "reasoning": ["none", "low", "medium", "high", "extra-high"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "272k", "reasoning": "none", "fast": "false"},
+        {"context": "272k", "reasoning": "none", "fast": "true"},
+        {"context": "272k", "reasoning": "low", "fast": "false"},
+        {"context": "272k", "reasoning": "low", "fast": "true"},
+        {"context": "272k", "reasoning": "medium", "fast": "false"},
+        {"context": "272k", "reasoning": "medium", "fast": "true"},
+        {"context": "272k", "reasoning": "high", "fast": "false"},
+        {"context": "272k", "reasoning": "high", "fast": "true"},
+        {"context": "272k", "reasoning": "extra-high", "fast": "false"},
+        {"context": "272k", "reasoning": "extra-high", "fast": "true"},
+        {"context": "1m", "reasoning": "none", "fast": "false"},
+        {"context": "1m", "reasoning": "low", "fast": "false"},
+        {"context": "1m", "reasoning": "medium", "fast": "false"},
+        {"context": "1m", "reasoning": "high", "fast": "false"},
+        {"context": "1m", "reasoning": "extra-high", "fast": "false"}
+      ]
+    },
+    {
+      "id": "claude-fable-5-1",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"]},
+      "variants": [
+        {"thinking": "false", "context": "300k", "effort": "low"},
+        {"thinking": "false", "context": "300k", "effort": "medium"},
+        {"thinking": "false", "context": "300k", "effort": "high"},
+        {"thinking": "false", "context": "300k", "effort": "xhigh"},
+        {"thinking": "false", "context": "300k", "effort": "max"},
+        {"thinking": "false", "context": "1m", "effort": "low"},
+        {"thinking": "false", "context": "1m", "effort": "medium"},
+        {"thinking": "false", "context": "1m", "effort": "high"},
+        {"thinking": "false", "context": "1m", "effort": "xhigh"},
+        {"thinking": "false", "context": "1m", "effort": "max"},
+        {"thinking": "true", "context": "300k", "effort": "low"},
+        {"thinking": "true", "context": "300k", "effort": "medium"},
+        {"thinking": "true", "context": "300k", "effort": "high"},
+        {"thinking": "true", "context": "300k", "effort": "xhigh"},
+        {"thinking": "true", "context": "300k", "effort": "max"},
+        {"thinking": "true", "context": "1m", "effort": "low"},
+        {"thinking": "true", "context": "1m", "effort": "medium"},
+        {"thinking": "true", "context": "1m", "effort": "high"},
+        {"thinking": "true", "context": "1m", "effort": "xhigh"},
+        {"thinking": "true", "context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "claude-fable-5",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"]},
+      "variants": [
+        {"thinking": "false", "context": "300k", "effort": "low"},
+        {"thinking": "false", "context": "300k", "effort": "medium"},
+        {"thinking": "false", "context": "300k", "effort": "high"},
+        {"thinking": "false", "context": "300k", "effort": "xhigh"},
+        {"thinking": "false", "context": "300k", "effort": "max"},
+        {"thinking": "false", "context": "1m", "effort": "low"},
+        {"thinking": "false", "context": "1m", "effort": "medium"},
+        {"thinking": "false", "context": "1m", "effort": "high"},
+        {"thinking": "false", "context": "1m", "effort": "xhigh"},
+        {"thinking": "false", "context": "1m", "effort": "max"},
+        {"thinking": "true", "context": "300k", "effort": "low"},
+        {"thinking": "true", "context": "300k", "effort": "medium"},
+        {"thinking": "true", "context": "300k", "effort": "high"},
+        {"thinking": "true", "context": "300k", "effort": "xhigh"},
+        {"thinking": "true", "context": "300k", "effort": "max"},
+        {"thinking": "true", "context": "1m", "effort": "low"},
+        {"thinking": "true", "context": "1m", "effort": "medium"},
+        {"thinking": "true", "context": "1m", "effort": "high"},
+        {"thinking": "true", "context": "1m", "effort": "xhigh"},
+        {"thinking": "true", "context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "grok-4.5",
+      "parameters": {"effort": ["low", "medium", "high"], "fast": ["false", "true"]},
+      "variants": [
+        {"effort": "low", "fast": "false"},
+        {"effort": "low", "fast": "true"},
+        {"effort": "medium", "fast": "false"},
+        {"effort": "medium", "fast": "true"},
+        {"effort": "high", "fast": "false"},
+        {"effort": "high", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "parameters": {"reasoning_effort": ["low", "medium", "high"]},
+      "variants": [
+        {"reasoning_effort": "low"},
+        {"reasoning_effort": "medium"},
+        {"reasoning_effort": "high"}
+      ]
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "parameters": {"effort": ["low", "medium", "high"]},
+      "variants": [
+        {"effort": "low"},
+        {"effort": "medium"},
+        {"effort": "high"}
+      ]
+    },
+    {
+      "id": "muse-spark-1.3",
+      "parameters": {"context": ["300k", "1m"], "effort": ["minimal", "low", "medium", "high", "xhigh", "max"]},
+      "variants": [
+        {"context": "300k", "effort": "minimal"},
+        {"context": "300k", "effort": "low"},
+        {"context": "300k", "effort": "medium"},
+        {"context": "300k", "effort": "high"},
+        {"context": "300k", "effort": "xhigh"},
+        {"context": "300k", "effort": "max"},
+        {"context": "1m", "effort": "minimal"},
+        {"context": "1m", "effort": "low"},
+        {"context": "1m", "effort": "medium"},
+        {"context": "1m", "effort": "high"},
+        {"context": "1m", "effort": "xhigh"},
+        {"context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "parameters": {"context": ["272k", "1m"], "reasoning": ["none", "low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "272k", "reasoning": "none", "fast": "false"},
+        {"context": "272k", "reasoning": "none", "fast": "true"},
+        {"context": "272k", "reasoning": "low", "fast": "false"},
+        {"context": "272k", "reasoning": "low", "fast": "true"},
+        {"context": "272k", "reasoning": "medium", "fast": "false"},
+        {"context": "272k", "reasoning": "medium", "fast": "true"},
+        {"context": "272k", "reasoning": "high", "fast": "false"},
+        {"context": "272k", "reasoning": "high", "fast": "true"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "false"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "true"},
+        {"context": "272k", "reasoning": "max", "fast": "false"},
+        {"context": "272k", "reasoning": "max", "fast": "true"},
+        {"context": "1m", "reasoning": "none", "fast": "false"},
+        {"context": "1m", "reasoning": "none", "fast": "true"},
+        {"context": "1m", "reasoning": "low", "fast": "false"},
+        {"context": "1m", "reasoning": "low", "fast": "true"},
+        {"context": "1m", "reasoning": "medium", "fast": "false"},
+        {"context": "1m", "reasoning": "medium", "fast": "true"},
+        {"context": "1m", "reasoning": "high", "fast": "false"},
+        {"context": "1m", "reasoning": "high", "fast": "true"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "false"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "true"},
+        {"context": "1m", "reasoning": "max", "fast": "false"},
+        {"context": "1m", "reasoning": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "claude-sonnet-5",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"]},
+      "variants": [
+        {"thinking": "false", "context": "300k", "effort": "low"},
+        {"thinking": "false", "context": "300k", "effort": "medium"},
+        {"thinking": "false", "context": "300k", "effort": "high"},
+        {"thinking": "false", "context": "300k", "effort": "xhigh"},
+        {"thinking": "false", "context": "300k", "effort": "max"},
+        {"thinking": "false", "context": "1m", "effort": "low"},
+        {"thinking": "false", "context": "1m", "effort": "medium"},
+        {"thinking": "false", "context": "1m", "effort": "high"},
+        {"thinking": "false", "context": "1m", "effort": "xhigh"},
+        {"thinking": "false", "context": "1m", "effort": "max"},
+        {"thinking": "true", "context": "300k", "effort": "low"},
+        {"thinking": "true", "context": "300k", "effort": "medium"},
+        {"thinking": "true", "context": "300k", "effort": "high"},
+        {"thinking": "true", "context": "300k", "effort": "xhigh"},
+        {"thinking": "true", "context": "300k", "effort": "max"},
+        {"thinking": "true", "context": "1m", "effort": "low"},
+        {"thinking": "true", "context": "1m", "effort": "medium"},
+        {"thinking": "true", "context": "1m", "effort": "high"},
+        {"thinking": "true", "context": "1m", "effort": "xhigh"},
+        {"thinking": "true", "context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "parameters": {"thinking": ["false", "true"], "context": ["200k", "1m"], "effort": ["low", "medium", "high", "max"]},
+      "variants": [
+        {"thinking": "false", "context": "200k", "effort": "low"},
+        {"thinking": "false", "context": "200k", "effort": "medium"},
+        {"thinking": "false", "context": "200k", "effort": "high"},
+        {"thinking": "false", "context": "200k", "effort": "max"},
+        {"thinking": "false", "context": "1m", "effort": "low"},
+        {"thinking": "false", "context": "1m", "effort": "medium"},
+        {"thinking": "false", "context": "1m", "effort": "high"},
+        {"thinking": "false", "context": "1m", "effort": "max"},
+        {"thinking": "true", "context": "200k", "effort": "low"},
+        {"thinking": "true", "context": "200k", "effort": "medium"},
+        {"thinking": "true", "context": "200k", "effort": "high"},
+        {"thinking": "true", "context": "200k", "effort": "max"},
+        {"thinking": "true", "context": "1m", "effort": "low"},
+        {"thinking": "true", "context": "1m", "effort": "medium"},
+        {"thinking": "true", "context": "1m", "effort": "high"},
+        {"thinking": "true", "context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "parameters": {"reasoning": ["low", "medium", "high", "extra-high"], "fast": ["false", "true"]},
+      "variants": [
+        {"reasoning": "low", "fast": "false"},
+        {"reasoning": "low", "fast": "true"},
+        {"reasoning": "medium", "fast": "false"},
+        {"reasoning": "medium", "fast": "true"},
+        {"reasoning": "high", "fast": "false"},
+        {"reasoning": "high", "fast": "true"},
+        {"reasoning": "extra-high", "fast": "false"},
+        {"reasoning": "extra-high", "fast": "true"}
+      ]
+    },
+    {
+      "id": "claude-opus-4-7",
+      "parameters": {"thinking": ["false", "true"], "context": ["300k", "1m"], "effort": ["low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "300k", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "false", "context": "1m", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "300k", "effort": "max", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "low", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "medium", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "high", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "xhigh", "fast": "true"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "false"},
+        {"cyber": "false", "thinking": "true", "context": "1m", "effort": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gpt-5.4",
+      "parameters": {"context": ["272k", "1m"], "reasoning": ["none", "low", "medium", "high", "extra-high"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "272k", "reasoning": "none", "fast": "false"},
+        {"context": "272k", "reasoning": "none", "fast": "true"},
+        {"context": "272k", "reasoning": "low", "fast": "false"},
+        {"context": "272k", "reasoning": "low", "fast": "true"},
+        {"context": "272k", "reasoning": "medium", "fast": "false"},
+        {"context": "272k", "reasoning": "medium", "fast": "true"},
+        {"context": "272k", "reasoning": "high", "fast": "false"},
+        {"context": "272k", "reasoning": "high", "fast": "true"},
+        {"context": "272k", "reasoning": "extra-high", "fast": "false"},
+        {"context": "272k", "reasoning": "extra-high", "fast": "true"},
+        {"context": "1m", "reasoning": "none", "fast": "false"},
+        {"context": "1m", "reasoning": "low", "fast": "false"},
+        {"context": "1m", "reasoning": "medium", "fast": "false"},
+        {"context": "1m", "reasoning": "high", "fast": "false"},
+        {"context": "1m", "reasoning": "extra-high", "fast": "false"}
+      ]
+    },
+    {
+      "id": "claude-opus-4-6",
+      "parameters": {"thinking": ["false", "true"], "context": ["200k", "1m"], "effort": ["low", "medium", "high", "max"]},
+      "variants": [
+        {"thinking": "false", "context": "200k", "effort": "low"},
+        {"thinking": "false", "context": "200k", "effort": "medium"},
+        {"thinking": "false", "context": "200k", "effort": "high"},
+        {"thinking": "false", "context": "200k", "effort": "max"},
+        {"thinking": "false", "context": "1m", "effort": "low"},
+        {"thinking": "false", "context": "1m", "effort": "medium"},
+        {"thinking": "false", "context": "1m", "effort": "high"},
+        {"thinking": "false", "context": "1m", "effort": "max"},
+        {"thinking": "true", "context": "200k", "effort": "low"},
+        {"thinking": "true", "context": "200k", "effort": "medium"},
+        {"thinking": "true", "context": "200k", "effort": "high"},
+        {"thinking": "true", "context": "200k", "effort": "max"},
+        {"thinking": "true", "context": "1m", "effort": "low"},
+        {"thinking": "true", "context": "1m", "effort": "medium"},
+        {"thinking": "true", "context": "1m", "effort": "high"},
+        {"thinking": "true", "context": "1m", "effort": "max"}
+      ]
+    },
+    {
+      "id": "claude-opus-4-5",
+      "parameters": {"thinking": ["false", "true"]},
+      "variants": [
+        {"thinking": "false"},
+        {"thinking": "true"}
+      ]
+    },
+    {
+      "id": "gpt-5.2",
+      "parameters": {"reasoning": ["low", "medium", "high", "extra-high"], "fast": ["false", "true"]},
+      "variants": [
+        {"reasoning": "low", "fast": "false"},
+        {"reasoning": "low", "fast": "true"},
+        {"reasoning": "medium", "fast": "false"},
+        {"reasoning": "medium", "fast": "true"},
+        {"reasoning": "high", "fast": "false"},
+        {"reasoning": "high", "fast": "true"},
+        {"reasoning": "extra-high", "fast": "false"},
+        {"reasoning": "extra-high", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "parameters": {"context": ["272k", "1m"], "reasoning": ["none", "low", "medium", "high", "xhigh", "max"], "fast": ["false", "true"]},
+      "variants": [
+        {"context": "272k", "reasoning": "none", "fast": "false"},
+        {"context": "272k", "reasoning": "none", "fast": "true"},
+        {"context": "272k", "reasoning": "low", "fast": "false"},
+        {"context": "272k", "reasoning": "low", "fast": "true"},
+        {"context": "272k", "reasoning": "medium", "fast": "false"},
+        {"context": "272k", "reasoning": "medium", "fast": "true"},
+        {"context": "272k", "reasoning": "high", "fast": "false"},
+        {"context": "272k", "reasoning": "high", "fast": "true"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "false"},
+        {"context": "272k", "reasoning": "xhigh", "fast": "true"},
+        {"context": "272k", "reasoning": "max", "fast": "false"},
+        {"context": "272k", "reasoning": "max", "fast": "true"},
+        {"context": "1m", "reasoning": "none", "fast": "false"},
+        {"context": "1m", "reasoning": "none", "fast": "true"},
+        {"context": "1m", "reasoning": "low", "fast": "false"},
+        {"context": "1m", "reasoning": "low", "fast": "true"},
+        {"context": "1m", "reasoning": "medium", "fast": "false"},
+        {"context": "1m", "reasoning": "medium", "fast": "true"},
+        {"context": "1m", "reasoning": "high", "fast": "false"},
+        {"context": "1m", "reasoning": "high", "fast": "true"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "false"},
+        {"context": "1m", "reasoning": "xhigh", "fast": "true"},
+        {"context": "1m", "reasoning": "max", "fast": "false"},
+        {"context": "1m", "reasoning": "max", "fast": "true"}
+      ]
+    },
+    {
+      "id": "gemini-3.6-flash",
+      "parameters": {"effort": ["minimal", "low", "medium", "high"]},
+      "variants": [
+        {"effort": "minimal"},
+        {"effort": "low"},
+        {"effort": "medium"},
+        {"effort": "high"}
+      ]
+    },
+    {
+      "id": "gemini-3.1-pro",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "parameters": {"reasoning": ["none", "low", "medium", "high", "xhigh"]},
+      "variants": [
+        {"reasoning": "none"},
+        {"reasoning": "low"},
+        {"reasoning": "medium"},
+        {"reasoning": "high"},
+        {"reasoning": "xhigh"}
+      ]
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "parameters": {"reasoning": ["none", "low", "medium", "high", "xhigh"]},
+      "variants": [
+        {"reasoning": "none"},
+        {"reasoning": "low"},
+        {"reasoning": "medium"},
+        {"reasoning": "high"},
+        {"reasoning": "xhigh"}
+      ]
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "parameters": {"thinking": ["false", "true"]},
+      "variants": [
+        {"thinking": "false"},
+        {"thinking": "true"}
+      ]
+    },
+    {
+      "id": "claude-sonnet-4-5",
+      "parameters": {"thinking": ["false", "true"], "context": ["200k"]},
+      "variants": [
+        {"thinking": "false", "context": "200k"},
+        {"thinking": "true", "context": "200k"}
+      ]
+    },
+    {
+      "id": "gpt-5.1",
+      "parameters": {"reasoning": ["low", "medium", "high"]},
+      "variants": [
+        {"reasoning": "low"},
+        {"reasoning": "medium"},
+        {"reasoning": "high"}
+      ]
+    },
+    {
+      "id": "gemini-3-flash",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "claude-sonnet-4",
+      "parameters": {"thinking": ["false", "true"], "context": ["200k"]},
+      "variants": [
+        {"thinking": "false", "context": "200k"},
+        {"thinking": "true", "context": "200k"}
+      ]
+    },
+    {
+      "id": "gpt-5-mini",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "gemini-2.5-flash",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "kimi-k3",
+      "parameters": {"reasoning": ["low", "high", "max"]},
+      "variants": [
+        {"reasoning": "low"},
+        {"reasoning": "high"},
+        {"reasoning": "max"}
+      ]
+    },
+    {
+      "id": "kimi-k2.7-code",
+      "parameters": {},
+      "variants": [
+        {}
+      ]
+    },
+    {
+      "id": "glm-5.2",
+      "parameters": {"reasoning": ["high", "max"]},
+      "variants": [
+        {"reasoning": "high"},
+        {"reasoning": "max"}
+      ]
+    }
+  ]
+}

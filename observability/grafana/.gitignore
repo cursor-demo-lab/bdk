@@ -1,0 +1,7 @@
+# Grafana tokens and local output never belong in git (generate.py --check also scans for token shapes).
+*.token
+*-token
+.grafana-*
+verify-results*.json
+screenshots/
+__pycache__/

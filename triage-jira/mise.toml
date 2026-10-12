@@ -1,0 +1,15 @@
+[tasks.start]
+description = "Serve triage-jira locally with dev defaults."
+run = "npm start"
+
+[tasks.test]
+description = "Run triage-jira unit tests."
+run = "npm test"
+
+[tasks.check]
+description = "Typecheck triage-jira."
+run = "npm run check"
+
+[tasks.validate]
+description = "Validate the triage-jira agent."
+run = "npm run validate"

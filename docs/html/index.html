@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Software factory, end to end</title>
+  <meta name="description" content="How a Jira ticket moves through the Slack, Jira, and GitHub software factory: triage, a parked cloud launch, review, an opted-in fix loop, and a human merge.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23f54e00'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #f7f7f4;
+      --panel: #fffdf9;
+      --wash: #f0efe8;
+      --border: #e7e5dd;
+      --border-2: #d4d1c6;
+      --text: #26251e;
+      --soft: #5f5e54;
+      --muted: #6f6d62;
+      --accent: #f54e00;
+      --accent-deep: #c23d00;
+      --accent-soft: #fbe7dc;
+      --accent-line: #f0b08a;
+      --sans: -apple-system, "SF Pro Display", "Segoe UI", Helvetica, Arial, sans-serif;
+      --mono: "SF Mono", "Berkeley Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      --player: 128px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--text); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--wash);
+      padding: 0.08em 0.35em;
+      border-radius: 4px;
+    }
+
+    header.site {
+      padding: 36px 0 8px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      font-weight: 640;
+    }
+
+    .dek {
+      margin: 0;
+      max-width: 68ch;
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--soft);
+    }
+
+    .meta {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+
+    .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 22px 0 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+      color: var(--soft);
+    }
+
+    .legend li { display: flex; align-items: center; gap: 8px; }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid var(--border-2);
+      background: var(--panel);
+    }
+
+    .swatch.human { background: var(--accent-soft); border-color: var(--accent); }
+    .swatch.agent { border: 2px solid var(--text); }
+    .swatch.setting { border-style: dashed; background: var(--wash); }
+
+    .gates {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 22px 0 28px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .gate {
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      background: var(--panel);
+      border: 1px solid var(--border-2);
+      border-radius: 12px;
+      padding: 12px 14px 14px;
+      cursor: pointer;
+    }
+
+    .gate .kicker { color: var(--accent-deep); }
+    .gate strong { display: block; font-size: 15px; letter-spacing: -0.02em; margin: 0 0 4px; }
+    .gate .sub { display: block; color: var(--soft); font-size: 13.5px; line-height: 1.4; }
+
+    .lane {
+      border-left: 3px solid transparent;
+      padding: 8px 0 8px 16px;
+      margin: 0 0 6px;
+    }
+
+    .lane.is-current { border-left-color: var(--accent); }
+
+    .kicker {
+      margin: 0 0 4px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .lane h2 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+      font-weight: 640;
+    }
+
+    .lede, .bridge, .hint {
+      max-width: 72ch;
+      color: var(--soft);
+    }
+
+    .lede { margin: 0 0 14px; }
+    .hint { margin: 10px 0 0; font-size: 14px; }
+
+    .bridge {
+      margin: 4px 0 18px 16px;
+      padding-left: 12px;
+      border-left: 2px solid var(--accent-line);
+      font-size: 15px;
+    }
+
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding: 2px 2px 10px;
+      scroll-snap-type: x proximity;
+    }
+
+    .flow + .flow { margin-top: 4px; }
+
+    .node {
+      flex: 1 1 0;
+      min-width: 156px;
+      scroll-snap-align: start;
+      scroll-margin: 24px 0 200px;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+      background: var(--panel);
+      border: 1px solid var(--border-2);
+      border-radius: 12px;
+      padding: 10px 12px 12px;
+      cursor: pointer;
+    }
+
+    .node strong {
+      display: block;
+      font-size: 14.5px;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      font-weight: 650;
+    }
+
+    .node .slug {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    .node .sub {
+      display: block;
+      margin-top: 4px;
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 400;
+    }
+
+    .node[data-kind="human"] {
+      background: var(--accent-soft);
+      border-color: var(--accent-line);
+    }
+
+    .node[data-kind="human"] .kicker { color: var(--accent-deep); }
+
+    .node[data-kind="agent"] { border: 2px solid var(--text); }
+
+    .node[data-kind="setting"] {
+      border-style: dashed;
+      background: var(--wash);
+    }
+
+    .edge {
+      flex: 0 0 76px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .edge .line {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 1px;
+      background: var(--border-2);
+    }
+
+    .edge .line::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: -4px;
+      border: 4px solid transparent;
+      border-left-color: #8a877c;
+      border-right-width: 0;
+    }
+
+    .node:hover { border-color: var(--text); }
+
+    .node:focus-visible,
+    .gate:focus-visible,
+    .player button:focus-visible,
+    .tick:focus-visible {
+      outline: 2px solid var(--accent-deep);
+      outline-offset: 2px;
+    }
+
+    body.is-walking .mark:not(.is-hot):not(.is-done) { opacity: 0.4; }
+
+    .mark.is-hot {
+      opacity: 1;
+      border-color: var(--accent) !important;
+    }
+
+    .mark.is-done { opacity: 1; }
+
+    .notes {
+      margin: 28px 0 12px;
+      padding-top: 8px;
+    }
+
+    .notes h2 {
+      margin: 28px 0 8px;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .notes ul { margin: 0; padding-left: 18px; max-width: 75ch; }
+    .notes li { margin: 0 0 8px; }
+    .notes li span { color: var(--soft); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+    tr:last-child td { border-bottom: 0; }
+    td code { white-space: nowrap; }
+    #jira-rules td code { white-space: normal; overflow-wrap: anywhere; }
+
+    details {
+      margin: 18px 0 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px 4px;
+    }
+
+    summary { cursor: pointer; font-weight: 650; margin-bottom: 8px; }
+    details pre, pre.code {
+      overflow-x: auto;
+      background: var(--wash);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    pre.code { margin: 10px 0 0; border: 1px solid var(--border); white-space: pre; }
+    pre.code code { background: none; padding: 0; }
+    .warn { color: var(--soft); font-size: 14px; margin-top: 0; }
+
+    footer.colophon {
+      margin: 8px 0 0;
+      padding-bottom: calc(var(--player) + 28px);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .player {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      max-height: 46vh;
+      overflow: auto;
+      background: var(--panel);
+      border-top: 1px solid var(--border-2);
+    }
+
+    .player-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 10px 28px 4px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 18px;
+      align-items: center;
+    }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .player button,
+    .tick {
+      font: inherit;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border-2);
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .player button { padding: 6px 12px; font-size: 14px; }
+    .player button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+    #step-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+
+    #step-body {
+      margin: 2px 0 0;
+      max-width: 78ch;
+      font-size: 14px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    #step-look { margin: 2px 0 0; font-size: 13px; color: var(--soft); }
+    #step-look:empty { display: none; }
+
+    .ticks {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 6px;
+      padding: 0 0 8px;
+    }
+
+    .tick {
+      flex: 1 1 0;
+      height: 8px;
+      padding: 0;
+      border-radius: 99px;
+      background: var(--wash);
+    }
+
+    .tick[aria-current="step"] { background: var(--accent); }
+    .tick.is-done { background: var(--accent-line); }
+
+    @media (max-width: 800px) {
+      .gates { grid-template-columns: 1fr; }
+      .player-inner { grid-template-columns: 1fr; padding: 12px 16px 8px; }
+      .wrap { padding: 0 16px; }
+      h1 { font-size: 32px; }
+      .flow {
+        flex-direction: column;
+        align-items: stretch;
+        overflow: visible;
+      }
+      .node { min-width: 0; flex: none; }
+      .edge {
+        flex: none;
+        width: auto;
+        height: 28px;
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 0 0 0 18px;
+        gap: 8px;
+      }
+      .edge .line { width: 1px; height: 22px; flex: none; }
+      .edge .line::after {
+        top: auto;
+        right: auto;
+        bottom: 0;
+        left: -3px;
+        border: 4px solid transparent;
+        border-top-color: #8a877c;
+        border-bottom-width: 0;
+        border-left-width: 4px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .node:hover { transform: none; }
+    }
+
+    @media print {
+      body { border-top: 0; background: white; }
+      .player, .controls, .ticks, .sources { display: none !important; }
+      .mark { opacity: 1 !important; }
+      footer.colophon { padding-bottom: 0; }
+      .lane { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <p class="eyebrow">APJ GTM · Software factory</p>
+      <h1>End to end on Slack, Jira, and GitHub</h1>
+      <p class="dek">A person opens a request with <code>@Factory</code> in one Slack thread, reacts ✅ twice (once to file, once on the plan), then reviews and merges on GitHub. Plain replies in the thread need no mention. Six hosted agents run, one per stage, and none calls another: each writes its artifact to the Jira ticket and moves it, and the next wakes on that status. The thread reads: the filing prompt with Jev's triage, ✅, the Filed post, Triaged, the plan post, ✅, exactly one In Progress post, the marsbank pull request, review updates (🐛 🔒 🏗️ 📡 🔧, in that order), and In Review. The swimlane with every artifact is <a href="e2e.html">e2e.html</a>.</p>
+      <p class="meta"><code>@cursor/july@0.2.22</code> · Cursor-managed hosting v2 · sandbox <code>cursor-demo-lab/marsbank</code> · Jira project <code>TLSSN</code> · Jira status as the bus · ✅ / ❌ reaction gates (<code>reactions:read</code>, <code>reaction_added</code>), no buttons · host model Auto (<code>auto-smart</code>, <code>optimize_for=balanced</code>), <code>factory-desk</code> on <code>grok-4.6-fast</code></p>
+      <ul class="sources">
+        <li><a href="e2e.html">Every step, swimlane</a></li>
+        <li><a href="../event-driven-factory.md">Design</a></li>
+        <li><a href="#jira-rules">Jira Automation rules</a></li>
+        <li><a href="#automations">Automations as code</a></li>
+        <li><a href="../factory-deployment.md">Deploy</a></li>
+        <li><a href="../verification.md">What is proven</a></li>
+        <li><a href="../../README.md">Operator checklist</a></li>
+      </ul>
+      <ul class="legend">
+        <li><i class="swatch human" aria-hidden="true"></i> Person</li>
+        <li><i class="swatch agent" aria-hidden="true"></i> Agent</li>
+        <li><i class="swatch setting" aria-hidden="true"></i> Setting, not an agent</li>
+        <li><i class="swatch" aria-hidden="true"></i> System or result</li>
+      </ul>
+      <ol class="gates">
+        <li>
+          <button type="button" class="mark gate" data-mark="g1" id="gate-1">
+            <span class="kicker">Slack · gate 1</span>
+            <strong>✅ on the filing prompt</strong>
+            <span class="sub">Jev triages first. The desk creates no ticket until the person who asked reacts ✅ on the filing prompt (❌ drops it; a plain approve file reply also works).</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="mark gate" data-mark="g2" id="gate-2">
+            <span class="kicker">Slack · gate 2</span>
+            <strong>✅ on the plan</strong>
+            <span class="sub">Nothing is built until the filer reacts ✅ on the plan post (❌ leaves it Planned), or someone drags the card to Approved. The next beat is exactly one In Progress post.</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="mark gate" data-mark="g3" id="gate-3">
+            <span class="kicker">GitHub · gate 3</span>
+            <strong>Review, then merge</strong>
+            <span class="sub">A person presses Merge. No agent merges and nobody turns on auto-merge; only a person's merge moves the ticket to Done.</span>
+          </button>
+        </li>
+      </ol>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="lane" id="lane-ticket">
+      <p class="kicker">1 · Amplitude stages: Intake, Ticket</p>
+      <h2>A thread files the ticket, and triage classifies it</h2>
+      <p class="lede">In <code>#mars-eng-intake</code> a person opens a request with <code>@Factory</code>. Before anything is filed the desk asks Jev to triage it (its <code>grok-4.6-fast</code> turn triages when Jev is unsure) and posts one filing prompt. The requester's ✅ on that prompt files the issue in <code>TLSSN</code>, writes the <code>Triage:</code> comment, moves it to Triaged, and posts the Filed post. Triage-jira skips a desk-filed ticket; it triages tickets filed in Jira directly.</p>
+      <div class="flow" aria-label="File the ticket">
+        <button type="button" class="node mark" id="node-ask" data-mark="ask" data-kind="human">
+          <span class="kicker">Person</span>
+          <strong>#mars-eng-intake</strong>
+          <span class="sub">"@Factory CSV export returns 500 when the filter matches no rows." Then ✅ on the filing prompt.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>Jev, then ✅</span></div>
+        <button type="button" class="node mark" id="node-desk-file" data-mark="desk-file" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-desk</strong>
+          <span class="sub">Jev triages, the filing prompt asks for ✅ / ❌, and the requester's ✅ runs <code>file_ticket</code> through the Factory Atlassian team MCP. It saves the thread as <code>ticket/TLSSN-42</code> in <code>host.kv</code>.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>createJiraIssue</span></div>
+        <button type="button" class="node mark" id="node-issue" data-mark="issue" data-kind="result">
+          <span class="kicker">Jira</span>
+          <strong>Filed, then Triaged</strong>
+          <span class="sub">The Filed post: the key and Bug, low severity (triaged by Jev), with nothing about later steps. No second Triaged line for that verdict.</span>
+        </button>
+      </div>
+      <div class="flow" aria-label="Triage">
+        <button type="button" class="node mark" id="node-issue-2" data-mark="issue" data-kind="result">
+          <span class="kicker">Jira Automation</span>
+          <strong>Issue created</strong>
+          <span class="sub">For a ticket filed in Jira, the <code>factory-triage-jira</code> rule posts the issue with <code>X-Factory-Webhook-Secret</code>. A desk-filed ticket is skipped.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>issue created</span></div>
+        <button type="button" class="node mark" id="node-triage" data-mark="triage" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-triage-jira</strong>
+          <span class="sub">Classifies the issue and calls <code>record_triage</code> once.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>record_triage</span></div>
+        <button type="button" class="node mark" id="node-triaged" data-mark="triaged" data-kind="result">
+          <span class="kicker">Writes</span>
+          <strong>Triage:, then Triaged</strong>
+          <span class="sub">Kind, severity, summary, next step, and a duplicate link if it found one. It never sets priority.</span>
+        </button>
+      </div>
+      <p class="hint">A ticket filed in Jira directly takes the same path. The desk then opens one root post for it in <code>#mars-eng-intake</code>, and it can be approved only on the board.</p>
+    </section>
+
+    <p class="bridge">The status change is the handoff. Triage does not call the planner.</p>
+
+    <section class="lane" id="lane-plan">
+      <p class="kicker">2 · Amplitude stage: Plan</p>
+      <h2>The planner writes the plan, and the desk posts it</h2>
+      <p class="lede">The Triaged rule wakes <code>factory-planner</code>. It reads the ticket and the sandbox, writes one <code>Plan:</code> comment that ends in a <code>Brief:</code>, and moves the ticket to Planned. The Planned rule wakes the desk, which posts the plan into the thread.</p>
+      <div class="flow" aria-label="Plan">
+        <button type="button" class="node mark" id="node-planner" data-mark="planner" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-planner</strong>
+          <span class="sub">Reads <code>cursor-demo-lab/marsbank</code> read-only, screens candidate designs, picks one.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>record_plan</span></div>
+        <button type="button" class="node mark" id="node-planned" data-mark="planned" data-kind="result">
+          <span class="kicker">Writes</span>
+          <strong>Plan:, then Planned</strong>
+          <span class="sub">The <code>Brief:</code> is the cloud agent's prompt, word for word.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>Planned</span></div>
+        <button type="button" class="node mark" id="node-desk-plan" data-mark="desk-plan" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-desk</strong>
+          <span class="sub">Host code, no model turn. One post per transition, claimed in <code>host.kv</code>.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>thread</span></div>
+        <button type="button" class="node mark" id="node-plan-post" data-mark="plan-post" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>The plan in the thread</strong>
+          <span class="sub">Summary, approach, areas, tests, risk, size, and a link to the full plan, ending in: react ✅ to start the build or ❌ to stop, or reply approve / deny KEY (reactions only in a channel the desk does not watch).</span>
+        </button>
+      </div>
+    </section>
+
+    <p class="bridge">The plan waits for the person who filed it.</p>
+
+    <section class="lane" id="lane-approve">
+      <p class="kicker">3 · Amplitude stage: Open the pull request</p>
+      <h2>✅ on the plan is the launch</h2>
+      <p class="lede">The filer reacts ✅ on the plan post (or replies a plain <code>approve</code>). Host code moves Planned to Approved and records the Slack approval, so the Approved webhook stays quiet. The Approved rule wakes <code>factory-worker</code>, which launches one cloud agent from the brief, comments <code>Implementing:</code> with its URL, and moves the ticket to In Progress. The desk posts exactly one In Progress post with the URL.</p>
+      <div class="flow" aria-label="Approve">
+        <button type="button" class="node mark" id="node-approve" data-mark="approve" data-kind="human">
+          <span class="kicker">Person</span>
+          <strong>✅ on the plan</strong>
+          <span class="sub">Only the filer, only in this thread. ❌ leaves it Planned; <code>replan KEY</code> sends it back to Triaged.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>reaction_added</span></div>
+        <button type="button" class="node mark" id="node-desk-approve" data-mark="desk-approve" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-desk</strong>
+          <span class="sub">Planned to Approved, only from Planned. It launches nothing.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>Approved</span></div>
+        <button type="button" class="node mark" id="node-approved-post" data-mark="approved-post" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>No Approved line</strong>
+          <span class="sub">The agent link is the next beat. A board drag still posts KEY is Approved.</span>
+        </button>
+      </div>
+      <div class="flow" aria-label="Launch">
+        <button type="button" class="node mark" id="node-worker-launch" data-mark="worker-launch" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-worker</strong>
+          <span class="sub">Host code, no model turn. Claims <code>implement/TLSSN-42</code> (owner, read-back, settle re-read), then calls <code>Agent.create</code> with the claim key as its idempotency key.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>brief</span></div>
+        <button type="button" class="node mark" id="node-cloud" data-mark="cloud" data-kind="result">
+          <span class="kicker">Cloud</span>
+          <strong>Cloud agent</strong>
+          <span class="sub"><code>claude-opus-5-5</code> on marsbank from <code>main</code>, <code>autoCreatePR</code> off; the agent opens its PR ready.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>Implementing:</span></div>
+        <button type="button" class="node mark" id="node-in-progress" data-mark="in-progress" data-kind="result">
+          <span class="kicker">Jira</span>
+          <strong>In Progress</strong>
+          <span class="sub">Moved only after the <code>Implementing: &lt;url&gt;</code> comment lands.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>thread</span></div>
+        <button type="button" class="node mark" id="node-progress-post" data-mark="progress-post" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>One In Progress post</strong>
+          <span class="sub">The desk posts the agent URL from that comment, once.</span>
+        </button>
+      </div>
+      <p class="hint">There are no Slack cards or buttons: every gate is a ✅ / ❌ reaction on the filing prompt or plan post (<code>reaction_added</code>, 0.2.11), or the same decision as a plain reply. A later approval that finds the worker's launched claim does not launch again. Two approvals that race usually launch once: the claim re-reads its own owner after a 2 s settle, but with no compare-and-set a put slower than that can still let both launch, and whether the idempotency key then prevents a second agent is unchecked.</p>
+    </section>
+
+    <p class="bridge">The pull request opening moves the ticket. No Jira rule and no GitHub for Jira transition does it.</p>
+
+    <section class="lane" id="lane-review">
+      <p class="kicker">4 · Amplitude stages: Bugbot, Security pass</p>
+      <h2>The pull request opens: In Review, and two reviews</h2>
+      <p class="lede">The cloud agent opens the pull request on <code>cursor-demo-lab/marsbank</code>. Its branch and title start with the key. <code>factory-worker</code> hears the <code>pull_request</code> event through a read-only GitHub channel, comments <code>Pull request: &lt;url&gt;</code> once, and moves the ticket from In Progress to In Review. Bugbot and the security reviewer run because the pull request exists.</p>
+      <div class="flow" aria-label="In Review">
+        <button type="button" class="node mark" id="node-pr" data-mark="pr" data-kind="result">
+          <span class="kicker">GitHub</span>
+          <strong>Pull request</strong>
+          <span class="sub">On <code>cursor-demo-lab/marsbank</code>, branch <code>TLSSN-42-…</code> into <code>main</code>. The platform opens it as a draft; the worker undrafts it so Bugbot reviews it.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>pull_request</span></div>
+        <button type="button" class="node mark" id="node-worker-review" data-mark="worker-review" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-worker</strong>
+          <span class="sub">Only its own launched ticket, only from In Progress. Claimed once per ticket and pull request.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>transition</span></div>
+        <button type="button" class="node mark" id="node-in-review" data-mark="in-review" data-kind="result">
+          <span class="kicker">Jira</span>
+          <strong>In Review</strong>
+          <span class="sub">The desk's rule lists In Review, so it hears the move.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>thread</span></div>
+        <button type="button" class="node mark" id="node-review-post" data-mark="review-post" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>KEY is In Review: owner/repo#N</strong>
+          <span class="sub">Linked from the worker's <code>Pull request:</code> comment. Bugbot and pr-autofixer drive it; a human reviews and merges.</span>
+        </button>
+      </div>
+      <div class="flow" aria-label="Reviews">
+        <button type="button" class="node mark" id="node-bugbot" data-mark="bugbot" data-kind="setting">
+          <span class="kicker">Setting</span>
+          <strong>Bugbot</strong>
+          <span class="sub">A repo toggle in the Cursor dashboard. No agent queues it.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>same PR</span></div>
+        <button type="button" class="node mark" id="node-security" data-mark="security" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-security-reviewer</strong>
+          <span class="sub">Runs on opened, reopened, synchronize, and ready for review, and on factory drafts.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>one review</span></div>
+        <button type="button" class="node mark" id="node-sec-out" data-mark="sec-out" data-kind="result">
+          <span class="kicker">Writes</span>
+          <strong>## Security review</strong>
+          <span class="sub">One COMMENT review per head: CLEAN, FINDINGS, or INCOMPLETE. It cannot block the merge.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>gates settle</span></div>
+        <button type="button" class="node mark" id="node-review-update" data-mark="review-update" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>KEY review update on &lt;sha&gt;</strong>
+          <span class="sub">One bullet per settled gate, always in this order: 🐛 Bugbot, 🔒 security review, 🏗️ CI, 📡 change review, 🔧 autofix.</span>
+        </button>
+      </div>
+    </section>
+
+    <p class="bridge">If CI passes, the next lane never runs.</p>
+
+    <section class="lane" id="lane-fix">
+      <p class="kicker">5 · Amplitude stages: Failed build, Autopilot</p>
+      <h2>A red check drives the fixer</h2>
+      <p class="lede">A failed <code>check_suite</code> or <code>workflow_run</code> on a pull request whose branch starts with a ticket key (or whose title does, when <code>cursor[bot]</code> opened it) starts <code>pr-autofixer</code> with no request. Any other pull request needs a person to type <code>factory: drive</code> on it in GitHub. Asked in Slack to fix a pull request, the desk replies with that instruction and writes nothing to GitHub.</p>
+      <div class="flow" aria-label="Automatic drive">
+        <button type="button" class="node mark" id="node-red" data-mark="red" data-kind="result">
+          <span class="kicker">GitHub</span>
+          <strong>Red check</strong>
+          <span class="sub"><code>check_suite</code> or <code>workflow_run</code>; hosted v2 never forwards <code>check_run</code>.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>factory PR</span></div>
+        <button type="button" class="node mark" id="node-fixer" data-mark="fixer" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-pr-autofixer</strong>
+          <span class="sub">Claims <code>auto-drive:owner/repo#N</code> once, then drives a cloud run.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>push</span></div>
+        <button type="button" class="node mark" id="node-push" data-mark="push" data-kind="result">
+          <span class="kicker">Cloud</span>
+          <strong>Verified fix</strong>
+          <span class="sub">Pushed to the pull request head. It never merges, turns on auto-merge, or force-pushes.</span>
+        </button>
+      </div>
+      <div class="flow" aria-label="Manual drive">
+        <button type="button" class="node mark" id="node-drive" data-mark="drive" data-kind="human">
+          <span class="kicker">Person, on GitHub</span>
+          <strong>factory: drive</strong>
+          <span class="sub">Only for a pull request the factory did not open. Hosted ingress drops bot-authored comments.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>comment</span></div>
+        <button type="button" class="node mark" id="node-fixer-2" data-mark="fixer" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-pr-autofixer</strong>
+          <span class="sub">Same drive, opted in by a person.</span>
+        </button>
+      </div>
+      <p class="hint">Each push runs CI and Bugbot again and wakes the security reviewer on synchronize. GitHub's own Slack app can post failures to <code>#factory-escalations</code> for people to read; nothing in the factory subscribes to it.</p>
+    </section>
+
+    <p class="bridge">Nothing in the factory merges. A person does, and that merge is what closes the ticket.</p>
+
+    <section class="lane" id="lane-merge">
+      <p class="kicker">6 · Amplitude stages: Risk gate, Merge</p>
+      <h2>A person merges, and the ticket is Done</h2>
+      <p class="lede">A person checks CI, Bugbot, and one review, then presses Merge. <code>factory-worker</code> hears the merge and moves the ticket from In Review to Done without writing a second <code>Pull request:</code> comment. A merge by a bot or app, or by GitHub auto-merge, never moves it. The desk posts <code>KEY is Done: owner/repo#N was merged.</code></p>
+      <div class="flow" aria-label="Merge">
+        <button type="button" class="node mark" id="node-gate" data-mark="gate" data-kind="setting">
+          <span class="kicker">Setting</span>
+          <strong>Branch protection</strong>
+          <span class="sub">Not enforced yet: <code>cursor-demo-lab</code> is on GitHub Free and marsbank is private. A person checks by hand.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>checks pass</span></div>
+        <button type="button" class="node mark" id="node-merge" data-mark="merge" data-kind="human">
+          <span class="kicker">Person</span>
+          <strong>Merge</strong>
+          <span class="sub">A person presses Merge. Leave auto-merge off.</span>
+        </button>
+      </div>
+      <div class="flow" aria-label="Done">
+        <button type="button" class="node mark" id="node-worker-done" data-mark="worker-done" data-kind="agent">
+          <span class="kicker">Agent</span>
+          <strong class="slug">factory-worker</strong>
+          <span class="sub">Merged, no <code>auto_merge</code>, sender and <code>merged_by</code> a GitHub User with no <code>[bot]</code>.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>transition</span></div>
+        <button type="button" class="node mark" id="node-done" data-mark="done" data-kind="result">
+          <span class="kicker">Jira</span>
+          <strong>Done</strong>
+          <span class="sub">From In Review only; a ticket still In Progress passes through In Review first.</span>
+        </button>
+        <div class="edge"><span class="line"></span><span>thread</span></div>
+        <button type="button" class="node mark" id="node-done-post" data-mark="done-post" data-kind="result">
+          <span class="kicker">Slack</span>
+          <strong>KEY is Done: owner/repo#N</strong>
+          <span class="sub">Same <code>Pull request:</code> comment. The desk's rule lists Done, so it hears the move.</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="notes" id="jira-rules">
+    <h2>Jira Automation rules</h2>
+    <p class="lede">Five rules in the <code>TLSSN</code> project carry the status bus. Every rule sends a web request with method <code>POST</code>, header <code>Content-Type: application/json</code>, and the hidden header <code>X-Factory-Webhook-Secret</code> (its value is the slug's secret; never paste it into docs), with "Wait for response" unticked. Full setup: <a href="../jira-automation.md">jira-automation.md</a>.</p>
+    <table>
+      <thead><tr><th>Rule</th><th>Trigger</th><th>URL (channel path)</th><th>Body</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-desk</code></td><td>Work item transitioned to In Progress, Planned, Approved, In Review, Done or Triaged</td><td><code>.../agents/&lt;desk agent id&gt;/engine/v1/channels/jira/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-planner</code></td><td>Transitioned to Triaged</td><td><code>.../agents/&lt;planner agent id&gt;/engine/v1/channels/webhook/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-worker</code></td><td>Transitioned to Approved</td><td><code>.../agents/&lt;worker agent id&gt;/engine/v1/channels/jira/</code></td><td>Status body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-desk-comments</code></td><td>Comment added (all comments)</td><td>desk <code>.../channels/jira/</code></td><td>Comment body</td></tr>
+        <tr><td><span class="mech jira-auto">Jira Automation</span> <code>factory-triage-jira</code></td><td>Work item created</td><td><code>.../agents/&lt;triage agent id&gt;/engine/v1/channels/webhook/</code></td><td>Triage body</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Every free-text smart value uses <code>.jsonEncode</code></strong> <span>Summary, description, reporter name, and comment body are encoded. An unescaped quote in a title made invalid JSON that the host dropped silently while Jira still logged "Successfully published web request". That broke planning for TLSSN-40/41.</span></li>
+    </ul>
+    <p class="lede">Status body (<code>factory-desk</code>, <code>factory-planner</code>, <code>factory-worker</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "jira:issue_updated", "issue": { "key": "{{issue.key}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" } } }, "changelog": { "id": "{{issue.key}}:{{issue.status.name}}:{{issue.updated}}", "items": [ { "field": "status", "fromString": "{{#changelog.status}}{{fromString}}{{/}}", "toString": "{{#changelog.status}}{{toString}}{{/}}" } ] } }</code></pre>
+    <p class="hint">Comment body (<code>factory-desk-comments</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "comment_created", "issue": { "key": "{{issue.key}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" } } }, "comment": { "id": "{{comment.id}}", "body": "{{comment.body.jsonEncode}}" } }</code></pre>
+    <p class="hint">Triage body (<code>factory-triage-jira</code>):</p>
+    <pre class="code"><code>{ "webhookEvent": "jira:issue_created", "issue": { "key": "{{issue.key}}", "self": "{{issue.url}}", "fields": { "summary": "{{issue.summary.jsonEncode}}", "description": "{{issue.description.plainText.jsonEncode}}", "status": { "name": "{{issue.status.name}}" }, "project": { "key": "{{issue.project.key}}" }, "reporter": { "displayName": "{{issue.reporter.displayName.jsonEncode}}" } } } }</code></pre>
+
+    </section>
+
+    <section class="notes" id="automations">
+    <h2>Automations as code (cursor-agent + YAML)</h2>
+    <p class="hint">The live factory runs as the six hosted Agent SDK (<code>@cursor/july</code> 0.2.18) deployments: the Jira rules above POST to the hosts' engine channel URLs, and GitHub events arrive through <code>--cursor-events-repo</code>. The same event wiring is also written as Cursor Automations config-as-code, one file per role at the repo root in <a href="https://github.com/example-org/demo-repo/tree/main/.cursor/automations"><code>.cursor/automations/factory-*.yaml</code></a>, deployable with <code>cursor-agent automations deploy</code>. Each spec runs <code>claude-opus-5-5</code> at low effort and its prompt points at the host's <code>AGENTS.md</code> in the checkout. There is no Jira trigger kind, so the Jira rules map to <code>webhook: {}</code>. Two out-of-the-box templates sit beside them, also <code>enabled: false</code>: <code>find-vulnerabilities.yaml</code> ("Find vulnerabilities" on marsbank PRs) and <code>find-bugs.yaml</code> ("Find critical bugs", not Bugbot). Bugbot, the managed Security Reviewer, and change monitor have no YAML form; turn them on in the dashboard (Bugbot rules live in <code>.cursor/BUGBOT.md</code>). Full guide: <a href="../cursor-agent-automations.md">cursor-agent-automations.md</a>.</p>
+    <ul>
+      <li><strong>The specs ship <code>enabled: false</code></strong> <span>Deploying them next to the live hosts cannot double-handle an event. Enable one only when it replaces (or shadows, pointed elsewhere) the matching host. A disabled deploy still creates the record, so <code>validate</code>, <code>get --yaml</code>, and <code>test</code> work.</span></li>
+      <li><strong>The <code>automations</code> verbs are gated</strong> <span>They need the <code>automations_config_as_code</code> gate on the account. If <code>cursor-agent automations --help</code> prints only the main help, the gate is off. <code>agent</code> is the same binary.</span></li>
+    </ul>
+    <p class="hint"><code>factory-desk.yaml</code> (abridged: <code>description</code> and the deploy-notes body after the closing <code>---</code> are omitted):</p>
+    <pre class="code"><code>---
+version: 1
+key: factory-desk
+name: "factory-desk"
+enabled: false
+scope: team_visible
+managed-by: ANY
+workflow:
+  prompts:
+    - prompt: |-
+        You are the Software Factory `factory-desk` role, run as a Cursor Automation.
+        Read factory-desk/AGENTS.md and
+        factory-desk/agent/instructions.md from the
+        example-org/demo-repo checkout, and follow agent/instructions.md as your
+        role prompt. The triggering Slack event or Jira payload is in the run context.
+        Do not edit this prompt to change behaviour; change the files it points at.
+  triggers:
+    - slackMention:
+        channel: C0EXAMPLE1
+    - slackReactionAdded:
+        channel: C0EXAMPLE1
+        emojiName: white_check_mark
+    - slackReactionAdded:
+        channel: C0EXAMPLE1
+        emojiName: x
+    - slackTrigger:
+        channel: C0EXAMPLE1
+        topLevelOnly: false
+      agenticFilterPrompt: |-
+        Pass only a plain reply inside a thread the factory started (a filing
+        prompt, a Filed post, or a ticket status thread). Drop top-level posts
+        and replies in threads the factory is not part of.
+    - webhook: {}
+  actions:
+    - slack:
+        channel: C0EXAMPLE1
+    - mcp:
+        server:
+          name: Factory Atlassian
+  model: claude-opus-5-5-low
+  modelSelection:
+    modelId: claude-opus-5-5
+    parameters:
+      - id: effort
+        value: low
+  gitConfig:
+    repo: https://github.com/example-org/demo-repo
+    branch: main
+  disabledDefaultTools:
+    - AUTOMATION_DEFAULT_TOOL_OPEN_GIT_PR
+---</code></pre>
+    <p class="hint">Apply from the repo root, as a real user (Slack and PR actions act through the deploying owner's connections):</p>
+    <pre class="code"><code>cursor-agent automations validate .cursor/automations/factory-desk.yaml
+cursor-agent automations deploy   .cursor/automations/factory-desk.yaml
+cursor-agent automations list --managed-by ANY --format text
+cursor-agent automations get factory-desk --yaml
+
+for f in .cursor/automations/factory-*.yaml \
+         .cursor/automations/find-vulnerabilities.yaml \
+         .cursor/automations/find-bugs.yaml; do
+  cursor-agent automations validate "$f" &amp;&amp; cursor-agent automations deploy "$f"
+done</code></pre>
+    </section>
+
+    <section class="notes" id="notes">
+      <h2>What the picture leaves out</h2>
+      <ul>
+        <li><strong>Jira is the bus.</strong> <span>Five TLSSN project Automation rules carry every Jira hop (<a href="#jira-rules">below</a>), each with <code>X-Factory-Webhook-Secret</code> set to the slug's secret. GitHub hops reach the worker, fixer, and reviewer through <code>githubChannel({ cursorAccount })</code>, deployed with <code>--cursor-events-repo cursor-demo-lab/marsbank</code>. No agent calls another.</span></li>
+        <li><strong>The desk's rule lists six statuses.</strong> <span>Triaged, Planned, Approved, In Progress, In Review, and Done, with Allow rule trigger ticked. Without Triaged the thread is silent from filing to the plan; without In Review and Done it goes quiet after "KEY is In Progress". No rule transitions a ticket from a pull request: disable any GitHub for Jira "created" or "merged" transition rule.</span></li>
+        <li><strong>Reaction gates, no buttons.</strong> <span>Hosted v2 inbound is <code>message</code>, <code>app_mention</code>, and <code>reaction_added</code> (0.2.11); the Slack app needs <code>reactions:read</code> and the <code>reaction_added</code> event. The requester's ✅ / ❌ on the filing prompt and the filer's ✅ / ❌ on the plan post are the gates; a plain reply (<code>approve file</code>, <code>approve</code>) does the same. New requests start with <code>@Factory</code>; replies in a factory thread need no mention. Dragging the card on the board does the same launch, under Jira permissions, and that path still posts the Approved line.</span></li>
+        <li><strong>Human merge only.</strong> <span>No agent merges, enables auto-merge, or force-pushes. The worker moves a ticket to Done only when a person merged its implement pull request, and only for a ticket it launched. Merge does not write a second <code>Pull request:</code> comment.</span></li>
+        <li><strong>Code, then live.</strong> <span>This walk follows the factory code on main. The full step list is <a href="e2e.html">e2e.html</a>; what was seen live is in <a href="../verification.md">verification.md</a>.</span></li>
+      </ul>
+
+      <h2>Same Amplitude stages, fewer agents</h2>
+      <p class="lede">The Atlassian sibling made every stage an agent. Here a stage is an agent only where it owns a hop on the ticket.</p>
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Here</th><th>Sibling slug</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Intake</td><td><code>factory-desk</code></td><td><code>delivery-desk</code></td></tr>
+          <tr><td>Ticket</td><td><code>factory-triage-jira</code></td><td><code>issue-triage</code></td></tr>
+          <tr><td>Plan</td><td><code>factory-planner</code></td><td>none</td></tr>
+          <tr><td>Open the pull request</td><td><code>factory-worker</code> (launch on Approved, In Review on open)</td><td><code>implementer</code></td></tr>
+          <tr><td>Bugbot</td><td>Repo setting</td><td><code>pr-reviewer</code></td></tr>
+          <tr><td>Security pass</td><td><code>factory-security-reviewer</code></td><td><code>security-review</code></td></tr>
+          <tr><td>Failed build</td><td><code>factory-pr-autofixer</code></td><td><code>ci-watch</code></td></tr>
+          <tr><td>Risk gate</td><td>Branch protection (not yet enforced)</td><td><code>approver</code></td></tr>
+          <tr><td>Merge</td><td>A person on GitHub; <code>factory-worker</code> moves the ticket to Done</td><td><code>approver</code></td></tr>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>Check the loop without Slack</summary>
+        <p class="warn">From <code>this repository</code>. Node 22.18+, never Bun. <code>serve</code> needs a signed-in Cursor host; the worker's GitHub channel starts the Cursor event stream.</p>
+        <pre>npx -p @cursor/july@0.2.22 agent-sdk serve --dir factory-worker --mode single --dev</pre>
+        <p class="warn">Signed synthetic Jira transition, with <code>JIRA_WEBHOOK_SECRET</code> exported. It launches a real cloud agent.</p>
+        <pre>node scripts/replay-jira-transition.mjs http://127.0.0.1:3000/v1/channels/jira/ TLSSN-42 Approved</pre>
+        <p class="warn">A person's merge of the implement pull request, as a loopback fixture (unsigned is admitted under <code>--dev</code> only). It moves a real ticket that the worker launched.</p>
+        <pre>curl -s -X POST http://127.0.0.1:3000/v1/channels/github/ \
+  -H 'content-type: application/json' -H 'x-github-event: pull_request' \
+  -d '{"action":"closed","repository":{"full_name":"cursor-demo-lab/marsbank","html_url":"https://github.com/cursor-demo-lab/marsbank"},
+       "pull_request":{"number":13,"html_url":"https://github.com/cursor-demo-lab/marsbank/pull/13","title":"TLSSN-42: fix","merged":true,"auto_merge":null,
+       "merged_by":{"login":"a-person","type":"User"},"user":{"login":"cursor[bot]"},"head":{"ref":"TLSSN-42-fix","sha":"0000000000000000000000000000000000000000"},"base":{"ref":"main"}},
+       "sender":{"login":"a-person","type":"User"}}'</pre>
+        <p class="warn">The whole Jira chain and the two marsbank test pull requests, asserted hop by hop.</p>
+        <pre>node scripts/e2e-drive.mjs --ticket TLSSN-42</pre>
+      </details>
+    </section>
+
+    <footer class="colophon">
+      Drawn from the factory-desk, factory-planner, factory-triage-jira, and factory-worker code on main. The full step list is <a href="e2e.html">e2e.html</a>. 25 Sep 2026.
+    </footer>
+  </main>
+
+  <div class="player" id="player">
+    <div class="player-inner">
+      <div class="controls">
+        <button type="button" id="prev">Back</button>
+        <button type="button" class="primary" id="next">Start the walk</button>
+        <button type="button" id="play">Play</button>
+        <button type="button" id="all" aria-pressed="true">Whole map</button>
+      </div>
+      <div aria-live="polite">
+        <p class="kicker" id="step-kicker">The factory loop</p>
+        <h2 id="step-title">Six lanes, one ticket</h2>
+        <p id="step-body">Read top to bottom. Orange is a person. A dashed border is a setting, not an agent. Select Next to follow TLSSN-42 from a Slack thread to Done.</p>
+        <p id="step-look"></p>
+      </div>
+      <div class="ticks" id="ticks" aria-label="Walk steps"></div>
+    </div>
+  </div>
+  <noscript><p class="wrap">The step-through needs JavaScript. The six lanes above are the whole picture.</p></noscript>
+
+  <script>
+    const intro = {
+      kicker: "The factory loop",
+      title: "Six lanes, one ticket",
+      body: "Read top to bottom. Orange is a person. A dashed border is a setting, not an agent. Select Next to follow TLSSN-42 from a Slack thread to Done.",
+      look: ""
+    };
+
+    const steps = [
+      {
+        stage: "Intake",
+        title: "Alice opens a request with @Factory",
+        body: "In #mars-eng-intake she mentions @Factory with the symptom. Jev triages it before anything is filed, and the desk posts one filing prompt: the title, the triage, and React ✅ to file or ❌ to drop, or reply approve file / deny file. Nothing is created yet.",
+        look: "The Slack thread",
+        lane: "lane-ticket",
+        focus: "node-ask",
+        marks: ["ask"]
+      },
+      {
+        stage: "Intake",
+        title: "✅ on the filing prompt creates TLSSN-42",
+        body: "Her ✅ runs file_ticket: the issue, the Triage: comment, and the move to Triaged. The desk saves the thread under the new key and posts the Filed post with Jev's triage.",
+        look: "The Filed post, then the Jira issue",
+        lane: "lane-ticket",
+        focus: "node-desk-file",
+        marks: ["ask", "desk-file", "issue", "g1"]
+      },
+      {
+        stage: "Ticket",
+        title: "Triaged",
+        body: "A desk-filed ticket is already Triaged. For a ticket filed in Jira, the Issue created rule wakes factory-triage-jira, which writes one Triage: comment and moves it to Triaged. Nobody calls the planner.",
+        look: "The Triage: comment on the issue",
+        lane: "lane-ticket",
+        focus: "node-triaged",
+        marks: ["issue", "triage", "triaged"]
+      },
+      {
+        stage: "Plan",
+        title: "The planner writes the plan",
+        body: "The Triaged rule wakes factory-planner. It reads the ticket and marsbank, writes a Plan: comment ending in Brief:, and moves the ticket to Planned.",
+        look: "The Plan: comment on the issue",
+        lane: "lane-plan",
+        focus: "node-planned",
+        marks: ["planner", "planned"]
+      },
+      {
+        stage: "Plan",
+        title: "The plan lands in the thread",
+        body: "The Planned rule wakes the desk. Host code posts the plan into Alice's thread, ending in: react ✅ to start the build or ❌ to stop, or reply approve / deny KEY.",
+        look: "The plan post in the Slack thread",
+        lane: "lane-plan",
+        focus: "node-plan-post",
+        marks: ["desk-plan", "plan-post"]
+      },
+      {
+        stage: "Open the pull request",
+        title: "Alice reacts ✅ on the plan",
+        body: "Only the filer, in the ticket's thread. Host code moves Planned to Approved and records the Slack approval, so the Approved webhook stays quiet. ❌ leaves it Planned.",
+        look: "Her ✅ on the plan post; no Approved text line",
+        lane: "lane-approve",
+        focus: "node-desk-approve",
+        marks: ["approve", "desk-approve", "approved-post", "g2"]
+      },
+      {
+        stage: "Open the pull request",
+        title: "The worker launches the cloud agent",
+        body: "The Approved rule wakes factory-worker. It launches one cloud agent from the Brief:, comments Implementing: with the agent URL, and moves the ticket to In Progress. No model turn.",
+        look: "The Implementing: comment, then In Progress",
+        lane: "lane-approve",
+        focus: "node-cloud",
+        marks: ["worker-launch", "cloud", "in-progress"]
+      },
+      {
+        stage: "Open the pull request",
+        title: "Exactly one In Progress post",
+        body: "The In Progress rule wakes the desk, which posts the agent URL from the Implementing: comment, once. Alice can follow the agent from there.",
+        look: "TLSSN-42 is In Progress. Implementation started: <agent URL> in the thread",
+        lane: "lane-approve",
+        focus: "node-progress-post",
+        marks: ["in-progress", "progress-post"]
+      },
+      {
+        stage: "Open the pull request",
+        title: "The pull request opens: In Review",
+        body: "The agent opens the pull request on cursor-demo-lab/marsbank; the branch and title start with TLSSN-42. factory-worker comments Pull request: <url> once, then moves the ticket from In Progress to In Review. The desk posts KEY is In Review: owner/repo#N is open.",
+        look: "The pull request, then KEY is In Review: owner/repo#N is open",
+        lane: "lane-review",
+        focus: "node-in-review",
+        marks: ["cloud", "pr", "worker-review", "in-review", "review-post"]
+      },
+      {
+        stage: "Bugbot, Security pass",
+        title: "Review updates in the thread",
+        body: "Bugbot reviews every pull request because the repo setting is on, and factory-security-reviewer posts one Security review with a verdict. As gates settle the desk posts KEY review update on <sha>, one line per gate in the order 🐛 🔒 🏗️ 📡 🔧. Neither review can block the merge.",
+        look: "The reviews on the pull request, then the review update in Slack",
+        lane: "lane-review",
+        focus: "node-review-update",
+        marks: ["pr", "bugbot", "security", "sec-out", "review-update"]
+      },
+      {
+        stage: "Failed build",
+        title: "A red check drives the fixer",
+        body: "A failed check_suite or workflow_run on a factory pull request starts pr-autofixer with no request. Its cloud run pushes a verified fix; CI and both reviews run again.",
+        look: "A new commit on the pull request, then a green check",
+        lane: "lane-fix",
+        focus: "node-fixer",
+        marks: ["pr", "red", "fixer", "push"]
+      },
+      {
+        stage: "Merge",
+        title: "A person merges",
+        body: "A person checks CI, Bugbot, and one review, then presses Merge. No agent merges, and auto-merge stays off. Branch protection is not enforced yet on this repo.",
+        look: "The merged pull request",
+        lane: "lane-merge",
+        focus: "node-merge",
+        marks: ["gate", "merge", "g3"]
+      },
+      {
+        stage: "Merge",
+        title: "The merge moves the ticket to Done",
+        body: "factory-worker checks that a person merged it, with no auto-merge, and moves the ticket from In Review to Done without a second Pull request: comment. The Done rule wakes the desk, which posts KEY is Done: owner/repo#N was merged.",
+        look: "Done on the board, then KEY is Done: owner/repo#N was merged.",
+        lane: "lane-merge",
+        focus: "node-done-post",
+        marks: ["merge", "worker-done", "done", "done-post"]
+      }
+    ];
+
+    const kicker = document.getElementById("step-kicker");
+    const title = document.getElementById("step-title");
+    const body = document.getElementById("step-body");
+    const look = document.getElementById("step-look");
+    const nextBtn = document.getElementById("next");
+    const prevBtn = document.getElementById("prev");
+    const playBtn = document.getElementById("play");
+    const allBtn = document.getElementById("all");
+    const ticks = document.getElementById("ticks");
+    const motionOk = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let index = -1;
+    let timer = 0;
+
+    steps.forEach((step, i) => {
+      const tick = document.createElement("button");
+      tick.type = "button";
+      tick.className = "tick";
+      tick.dataset.step = String(i);
+      tick.setAttribute("aria-label", "Step " + (i + 1) + ": " + step.title);
+      tick.addEventListener("click", () => show(i));
+      ticks.appendChild(tick);
+    });
+
+    function show(next) {
+      stopPlay();
+      render(next);
+    }
+
+    function render(next) {
+      index = next;
+      const walking = index >= 0;
+      document.body.classList.toggle("is-walking", walking);
+      allBtn.setAttribute("aria-pressed", walking ? "false" : "true");
+
+      const seen = new Set();
+      if (walking) {
+        for (let i = 0; i < index; i += 1) steps[i].marks.forEach((mark) => seen.add(mark));
+      }
+      const hot = new Set(walking ? steps[index].marks : []);
+
+      document.querySelectorAll("[data-mark]").forEach((el) => {
+        const mark = el.dataset.mark;
+        const isHot = hot.has(mark);
+        el.classList.toggle("is-hot", isHot);
+        el.classList.toggle("is-done", walking && seen.has(mark) && !isHot);
+        if (isHot) el.setAttribute("aria-current", "step");
+        else el.removeAttribute("aria-current");
+      });
+
+      document.querySelectorAll(".lane").forEach((lane) => {
+        lane.classList.toggle("is-current", walking && lane.id === steps[index].lane);
+      });
+
+      ticks.querySelectorAll(".tick").forEach((tick, i) => {
+        tick.classList.toggle("is-done", walking && i < index);
+        if (walking && i === index) tick.setAttribute("aria-current", "step");
+        else tick.removeAttribute("aria-current");
+      });
+
+      if (!walking) {
+        kicker.textContent = intro.kicker;
+        title.textContent = intro.title;
+        body.textContent = intro.body;
+        look.textContent = "";
+        nextBtn.textContent = "Start the walk";
+        nextBtn.disabled = false;
+        prevBtn.disabled = true;
+        return;
+      }
+
+      const step = steps[index];
+      kicker.textContent = "Step " + (index + 1) + " of " + steps.length + " · " + step.stage;
+      title.textContent = step.title;
+      body.textContent = step.body;
+      look.textContent = "Audience looks at: " + step.look;
+      nextBtn.textContent = "Next";
+      nextBtn.disabled = index === steps.length - 1;
+      prevBtn.disabled = false;
+
+      const target = document.getElementById(step.focus);
+      if (target) {
+        target.scrollIntoView({ behavior: motionOk ? "smooth" : "auto", block: "center" });
+      }
+    }
+
+    function stopPlay() {
+      if (timer) window.clearInterval(timer);
+      timer = 0;
+      playBtn.textContent = "Play";
+      playBtn.setAttribute("aria-pressed", "false");
+    }
+
+    document.getElementById("next").addEventListener("click", () => {
+      if (index < steps.length - 1) show(index + 1);
+    });
+
+    document.getElementById("prev").addEventListener("click", () => {
+      show(index <= 0 ? -1 : index - 1);
+    });
+
+    allBtn.addEventListener("click", () => show(-1));
+
+    playBtn.addEventListener("click", () => {
+      if (timer) {
+        stopPlay();
+        return;
+      }
+      if (index >= steps.length - 1) index = -1;
+      const advance = () => {
+        if (index >= steps.length - 1) {
+          stopPlay();
+          return;
+        }
+        render(index + 1);
+      };
+      advance();
+      playBtn.textContent = "Pause";
+      playBtn.setAttribute("aria-pressed", "true");
+      timer = window.setInterval(advance, 4200);
+    });
+
+    document.querySelectorAll(".node, .gate").forEach((el) => {
+      el.addEventListener("click", () => {
+        const mark = el.dataset.mark;
+        const found = steps.findIndex((step) => step.marks.includes(mark));
+        if (found >= 0) show(found);
+      });
+    });
+
+    window.addEventListener("keydown", (event) => {
+      const tag = event.target && event.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        if (index < steps.length - 1) show(index + 1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        show(index <= 0 ? -1 : index - 1);
+      } else if (event.key === "Escape") {
+        show(-1);
+      } else if (event.key === " " && event.target === document.body) {
+        event.preventDefault();
+        playBtn.click();
+      }
+    });
+
+    show(-1);
+  </script>
+</body>
+</html>
