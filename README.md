@@ -10,7 +10,7 @@ import. Fill these in (or set the matching env vars) before you deploy:
 | `<SLACK_CHANNEL_ID>` / `C0EXAMPLE1` | Slack intake channel id (`C…`). `FACTORY_DESK_INTAKE_CHANNEL` |
 | `<SLACK_APP_ID>` / `A0EXAMPLE1` | Production Slack app id. Staging slugs refuse this app |
 | `<SLACK_TEAM_ID>` / `T0EXAMPLE1` | Slack workspace / team id |
-| `<SLACK_WORKSPACE>` | Slack workspace hostname (without `.slack.com`) |
+| `<SLACK_WORKSPACE>` / `example-workspace` | Slack workspace hostname (without `.slack.com`). Fixtures use `example-workspace.slack.com` so permalink parsers still match |
 | `<JIRA_SITE>` | Jira Cloud site hostname, used as `JIRA_CLOUD_ID=https://<JIRA_SITE>.atlassian.net` |
 | `<GRAFANA_STACK>` | Grafana Cloud stack slug |
 | `<GRAFANA_STACK_URL>` | `https://<GRAFANA_STACK>.grafana.net` (`GRAFANA_URL`) |

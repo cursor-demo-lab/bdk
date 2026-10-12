@@ -38,7 +38,7 @@ test("one cloud agent on the sandbox, keyed by the claim, prompted with the brie
 
 test("TLSSN-35: the handoff keeps the key-prefixed branch and tells the agent not to open the PR, since the worker opens it", () => {
   const handoff = prHandoff(INPUT);
-  assert.match(handoff, /push it to a branch on example-org\/apj-gtm, based on `main`, whose name starts with `TLSSN-42`/);
+  assert.match(handoff, /push it to a branch on example-org\/demo-repo, based on `main`, whose name starts with `TLSSN-42`/);
   assert.match(handoff, /Do not open a pull request yourself, with a tool or with `gh`, even where the brief above asks for one/);
   assert.match(handoff, /factory-worker opens it from your branch, ready for review/);
   assert.match(handoff, /final message becomes that pull request's description/);

@@ -93,7 +93,7 @@ test("declares pr-write cursorAccount on the sandbox (for the description's link
 });
 
 const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-9";
-const SLACK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790370261284789";
+const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789";
 const PLAN = ["Plan: TLSSN-9 CSV export", "Brief:", "Implement Jira TLSSN-9 on cursor-demo-lab/marsbank from main: CSV export", `Ticket: ${JIRA}`, `Slack thread: ${SLACK}`, "", "Problem: x"].join("\n");
 
 /** GitHub's pulls API for PR 13, a draft holding the description the agent wrote, and GraphQL's markPullRequestReadyForReview. Every other path is a 404. */

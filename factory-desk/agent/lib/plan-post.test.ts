@@ -50,7 +50,7 @@ test("a digest plan posts header, problem, approach, risk and size, areas, test 
     texts(blocks)[7],
     "<@U0ALICE01>, react ✅ to start the build or ❌ to stop, or reply `approve` / `deny`."
   );
-  assert.match(texts(blocks)[8]!, /^<https:\/\/x\.atlassian\.net\/browse\/TLSSN-42\|TLSSN-42 on Jira>  ·  <https:\/\/x\.atlassian\.net\/browse\/TLSSN-42\?focusedCommentId=10077\|Full plan and worker brief>  ·  Evidence: read the example-org\/apj-gtm checkout$/);
+  assert.match(texts(blocks)[8]!, /^<https:\/\/x\.atlassian\.net\/browse\/TLSSN-42\|TLSSN-42 on Jira>  ·  <https:\/\/x\.atlassian\.net\/browse\/TLSSN-42\?focusedCommentId=10077\|Full plan and worker brief>  ·  Evidence: read the example-org\/demo-repo checkout$/);
   assertWithinLimits(blocks);
   const all = [text, ...texts(blocks)].join("\n");
   assert.doesNotMatch(all, /```|Implement Jira TLSSN-42|Brief/, "the worker brief is on the Plan comment, not in Slack");

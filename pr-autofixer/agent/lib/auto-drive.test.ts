@@ -163,7 +163,7 @@ test("a start that is refused releases the lease, so the next red check takes it
 test("the claim is taken once per pull request; a lease past its time, or a value that is no lease, is retaken", async () => {
   const store = new Map<string, unknown>();
   const kv = plainKv(store);
-  const pr = { owner: "example-org", repo: "apj-gtm", number: 12, url: "https://github.com/example-org/demo-repo/pull/12", label: "example-org/demo-repo#12" };
+  const pr = { owner: "example-org", repo: "demo-repo", number: 12, url: "https://github.com/example-org/demo-repo/pull/12", label: "example-org/demo-repo#12" };
   const key = autoDriveKey(pr as never);
   const first = await claimAutoDrive(kv, pr as never, "2026-09-22T00:00:00.000Z");
   assert.ok(held(first));

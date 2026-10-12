@@ -11,7 +11,7 @@ import { briefLinks, withTicketLinks } from "../factory-worker/agent/lib/pr-link
 // description. Separate projects, so this is where the writer meets the reader.
 
 const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-28";
-const SLACK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
+const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
 
 const plan = planSchema.parse({
   issueKey: "TLSSN-28",
@@ -53,7 +53,7 @@ test("the worker reads the planner's brief links and the TLSSN-28 description ga
 });
 
 test("a Jira-filed ticket's intake backlink comment reaches the brief and the PR description like a Slack filing's line", () => {
-  const intake = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790370300000001";
+  const intake = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370300000001";
   const description = "Filed by hand in Jira. No Slack line here.";
   const slackUrl = slackThreadUrl([description, "Triage: bug\nSeverity: high", backlinkComment(intake)]);
   assert.equal(slackUrl, intake);

@@ -67,7 +67,7 @@ Every factory file sets `version: 1`, `enabled: false`,
 | `triggers[]` | One trigger kind per item, optional `agenticFilterPrompt` |
 | `actions[]` | `gitPr`, `prComment`, `slack`, `mcp` (by server name) |
 | `model` + `modelSelection` | claude-opus-5-5, low effort (below) |
-| `gitConfig` | Checkout for non-Git triggers: apj-gtm, plus marsbank for planner and worker |
+| `gitConfig` | Checkout for non-Git triggers: the private monorepo (not in this snapshot), plus marsbank for planner and worker |
 | `disabledDefaultTools` | `AUTOMATION_DEFAULT_TOOL_OPEN_GIT_PR` on every role except the worker |
 
 The prompt never changes. It follows everysphere's

@@ -11,7 +11,7 @@ export const INTAKE_CHANNEL = "C0INTAKE01";
 export const JIRA_FILED_DESCRIPTION = "The March statement PDF shows the opening balance where the closing balance should be. Seen on two accounts.";
 
 // file_ticket's description for a Slack filing (slack-link.ts `withSlackThread`).
-export const SLACK_FILED_DESCRIPTION = `${JIRA_FILED_DESCRIPTION}\n\nSlack thread: https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899`;
+export const SLACK_FILED_DESCRIPTION = `${JIRA_FILED_DESCRIPTION}\n\nSlack thread: https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899`;
 
 export const TRIAGE_COMMENT = { id: "20101", body: "Triage: bug\nSeverity: high\nNext step: Confirm the balance field on the statement template." };
 export const PLAN_COMMENT = {

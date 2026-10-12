@@ -271,7 +271,7 @@ test("factory-repos", () => {
 test("sandbox-repo", () => {
   const ok = byId("sandbox-repo", baseFacts());
   assert.equal(ok.level, "ok");
-  assert.match(ok.title, /example-org\/apj-gtm/);
+  assert.match(ok.title, /example-org\/demo-repo/);
   assert.match(ok.title, /FACTORY_SANDBOX_REF=main/);
   assertNonOk(
     byId("sandbox-repo", baseFacts({ env: { FACTORY_SANDBOX_REPO: "nope" } })),
@@ -382,7 +382,7 @@ test("planner-checkout", () => {
       })
     ),
     "warn",
-    /example-org\/apj-gtm/
+    /example-org\/demo-repo/
   );
 });
 
@@ -432,7 +432,7 @@ function githubAppFinding(env, exec) {
 }
 
 test("github-app is ok when cursor is among each owner's installations, and fails once per distinct owner when it is not", () => {
-  const installed = fakeExec({ example-org: "vercel\ncursor\n" });
+  const installed = fakeExec({ "example-org": "vercel\ncursor\n" });
   assert.deepEqual(githubAppFinding({}, installed.exec), {
     id: "github-app",
     level: "ok",
@@ -442,7 +442,7 @@ test("github-app is ok when cursor is among each owner's installations, and fail
     ["gh", "api", "orgs/example-org/installations", "--jq", ".installations[].app_slug"],
   ]);
 
-  const gh = fakeExec({ "cursor-demo-lab": "vercel\n", example-org: "cursor\n" });
+  const gh = fakeExec({ "cursor-demo-lab": "vercel\n", "example-org": "cursor\n" });
   const finding = githubAppFinding(
     { FACTORY_REPOS: "cursor-demo-lab/factory-sandbox, Cursor-Demo-Lab/other, example-org/demo-repo" },
     gh.exec
@@ -462,7 +462,7 @@ test("github-app is ok when cursor is among each owner's installations, and fail
 });
 
 test("github-app skips with the reason when gh is missing or the call fails", () => {
-  const missing = fakeExec({ example-org: execError("spawnSync gh ENOENT", { code: "ENOENT" }) });
+  const missing = fakeExec({ "example-org": execError("spawnSync gh ENOENT", { code: "ENOENT" }) });
   assert.deepEqual(githubAppFinding({}, missing.exec), {
     id: "github-app",
     level: "skip",
@@ -471,7 +471,7 @@ test("github-app skips with the reason when gh is missing or the call fails", ()
   });
 
   const notFound = fakeExec({
-    example-org: execError("Command failed: gh api", { status: 1, stderr: "gh: Not Found (HTTP 404)\n" }),
+    "example-org": execError("Command failed: gh api", { status: 1, stderr: "gh: Not Found (HTTP 404)\n" }),
   });
   assert.deepEqual(githubAppFinding({}, notFound.exec), {
     id: "github-app",
@@ -481,7 +481,7 @@ test("github-app skips with the reason when gh is missing or the call fails", ()
   });
 
   const scope = fakeExec({
-    example-org: execError("Command failed: gh api", {
+    "example-org": execError("Command failed: gh api", {
       status: 1,
       stderr:
         'gh: This API operation needs the "admin:org" scope. To request it, run:  gh auth refresh -h github.com -s admin:org\n',

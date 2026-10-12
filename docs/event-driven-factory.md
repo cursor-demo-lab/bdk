@@ -12,7 +12,7 @@ operator runbook is [`factory-deployment.md`](factory-deployment.md).
 
 Sources: store notes `july-event-driven-approach.md` and
 `everysphere-slack-patterns.md` (mirrored beside this file); sandy at
-`~/git/everysphere/factory/sandy`; everysphere `main` @ `9a4aaa4`;
+`<PRIVATE_MONOREPO>/factory/sandy`; everysphere `main` @ `9a4aaa4`;
 `@cursor/july` 0.2.1 `dist/docs`. Decisions in this file are Simon's
 (2026-09-22 and 2026-09-23) unless marked as a finding.
 

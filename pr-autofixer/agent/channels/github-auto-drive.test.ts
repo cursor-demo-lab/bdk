@@ -490,7 +490,7 @@ test("a red check on a factory PR whose repo is missing from FACTORY_REPOS fails
   const errors = t.mock.method(console, "error", () => {});
   process.env.FACTORY_REPOS = "example-org/demo-repo";
   t.after(() => { process.env.FACTORY_REPOS = REPO; });
-  await assert.rejects(deliver("check_suite", checkSuitePayload(21, "failure")), /acme\/in-scope is not in PR_AUTOFIXER_REPOS or FACTORY_REPOS \(example-org\/apj-gtm\)/);
+  await assert.rejects(deliver("check_suite", checkSuitePayload(21, "failure")), /acme\/in-scope is not in PR_AUTOFIXER_REPOS or FACTORY_REPOS \(example-org\/demo-repo\)/);
   assert.equal(drivesFor(21).length, 0);
   assert.equal(store.has(`auto-drive:${REPO}#21`), false);
   assert.match(String(errors.mock.calls[0]?.arguments[0] ?? ""), /^\[pr-autofixer\] auto-drive: acme\/in-scope#21 is a factory pull request/);
@@ -547,7 +547,7 @@ test("a person's factory: drive on a repo missing from FACTORY_REPOS fails loudl
   const logs = t.mock.method(console, "log", () => {});
   process.env.FACTORY_REPOS = "example-org/demo-repo";
   t.after(() => { process.env.FACTORY_REPOS = REPO; });
-  await assert.rejects(deliver("issue_comment", driveCommentPayload(24)), /acme\/in-scope#24 got a person's factory: drive, but acme\/in-scope is not in PR_AUTOFIXER_REPOS or FACTORY_REPOS \(example-org\/apj-gtm\)/);
+  await assert.rejects(deliver("issue_comment", driveCommentPayload(24)), /acme\/in-scope#24 got a person's factory: drive, but acme\/in-scope is not in PR_AUTOFIXER_REPOS or FACTORY_REPOS \(example-org\/demo-repo\)/);
   assert.equal(drivesFor(24).length, 0);
   assert.equal(store.has(`auto-drive:${REPO}#24`), false);
   assert.match(String(errors.mock.calls[0]?.arguments[0] ?? ""), /^\[pr-autofixer\] auto-drive: acme\/in-scope#24 got a person's factory: drive/);

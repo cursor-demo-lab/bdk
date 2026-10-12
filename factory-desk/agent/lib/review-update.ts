@@ -319,7 +319,7 @@ export function changeMonitorResult(comments: readonly CommentFacts[], checkRuns
 /**
  * The factory's own hosts, as `agent-sdk deploy --slug` names them
  * (docs/factory-deployment.md). The deploy pipeline makes each slug a Factory
- * catalog service, deployed from apj-gtm, so none of them is ever a service a
+ * catalog service, deployed from this repository, so none of them is ever a service a
  * `FACTORY_REPOS` pull request changes. Rollouts linked `factory-desk` to
  * marsbank changes and wrote `Services: factory-desk` into its comment.
  */

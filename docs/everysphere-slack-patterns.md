@@ -2,7 +2,7 @@ Mirrored from the agent store after the July/everysphere investigation landed. T
 
 # Slack patterns in everysphere for the factory desk
 
-Read at `~/git/everysphere` `main` @ `9a4aaa485b78d36c9c68fa78043ed20749abaf57`. Surveyed 24 `factory/*/agent/channels/slack.ts` plus the framework pack `packages/agent-serve/src/channels/slack/`. `asml-router` and `triage` are not in the monorepo (deployed from `Rperry2174/asml-gtmko-overlay-demo` and `jgrace19/grafana-triage-agent`; `agent-sdk deployment <slug> --json`, secrets redacted); only their hosted shape is cited. Companion: `docs/july-event-driven-approach.md`.
+Read at `<PRIVATE_MONOREPO>` `main` @ `9a4aaa485b78d36c9c68fa78043ed20749abaf57`. Surveyed 24 `factory/*/agent/channels/slack.ts` plus the framework pack `packages/agent-serve/src/channels/slack/`. `asml-router` and `triage` are not in the monorepo (deployed from `Rperry2174/asml-gtmko-overlay-demo` and `jgrace19/grafana-triage-agent`; `agent-sdk deployment <slug> --json`, secrets redacted); only their hosted shape is cited. Companion: `docs/july-event-driven-approach.md`.
 
 ## Adopt these
 

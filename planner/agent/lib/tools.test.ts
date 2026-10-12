@@ -237,7 +237,7 @@ test("record_plan pins a chained session to its ticket whatever key the model ty
 });
 
 test("record_plan links the filing Slack thread in the brief and the Plan: comment, so the pull request can", async () => {
-  const permalink = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899";
+  const permalink = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899";
   // Jira may hand the description back as ADF with the link as a smart link.
   const adf = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Filed from Slack.\n\nSlack thread: " }, { type: "inlineCard", attrs: { url: permalink } }] }] };
   for (const description of [`Filed from Slack.\n\nSlack thread: ${permalink}`, adf]) {
@@ -664,7 +664,7 @@ test("record_needs_info comments Needs info and does not move the ticket", async
   );
   assert.deepEqual(transitions(trackerCalls), []);
   const body = String(trackerCalls.find((call) => call.tool === "addCommentToJiraIssue")?.args?.["body"] ?? "");
-  assert.match(body, /^Needs info: TLSSN-42\nClaimed failure is not on example-org\/apj-gtm@main \(checked \d{4}-\d\d-\d\d \d\d:\d\d UTC\)\./);
+  assert.match(body, /^Needs info: TLSSN-42\nClaimed failure is not on example-org\/demo-repo@main \(checked \d{4}-\d\d-\d\d \d\d:\d\d UTC\)\./);
   assert.match(body, /Do not implement/);
   assert.deepEqual(store.get("plan-outcome/ses_1"), { tool: "record_needs_info", reason: "commented", tracker: "commented" });
 });

@@ -31,7 +31,7 @@ const BRANCH = "TLSSN-35-activity-register-landmark-name";
 const TITLE = "Activity register: show the landmark name";
 const AGENT_URL = "https://cursor.com/agents/bc-tlssn-35";
 const TICKET_URL = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-35";
-const SLACK_URL = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1758910000123456";
+const SLACK_URL = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1758910000123456";
 const ENV: NodeJS.ProcessEnv = { JIRA_WEBHOOK_SECRET: "test-secret", FACTORY_JIRA_PROJECTS: "TLSSN", FACTORY_SANDBOX_REPO: REPO, FACTORY_CLAIM_SETTLE_MS: "1" };
 const PLAN = [
   `Plan: ${KEY} ${TITLE}`,

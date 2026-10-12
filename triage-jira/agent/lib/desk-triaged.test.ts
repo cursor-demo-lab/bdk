@@ -7,7 +7,7 @@ import { DESK_TRIAGED_LINE, deskTriaged, governingTriage, isDeskTriageComment, w
 // (TLSSN-33, -35, -40 were triaged twice because the line-of-its-own test
 // missed that rendering), and the planner gets it from the connector's ADF.
 
-const PERMALINK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1758510000123456";
+const PERMALINK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1758510000123456";
 const FILED = withDeskTriaged(`Freeze card has no aria-describedby.\n\nSlack thread: ${PERMALINK}`);
 
 test("the desk's description as written, and as Automation's plainText glues it, both end with the line", () => {

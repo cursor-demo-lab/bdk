@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { briefLinks, withTicketLinks } from "./pr-links.js";
 
 const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-28";
-const SLACK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
+const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
 const LINKS = { jira: JIRA, slack: SLACK };
 
 const BRIEF = [

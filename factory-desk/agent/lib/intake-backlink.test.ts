@@ -7,7 +7,7 @@ import { JIRA_FILED_DESCRIPTION, SLACK_FILED_DESCRIPTION } from "./jira-originat
 import { backlinkComment } from "./slack-link.js";
 
 const ROOT = { channelId: "C0INTAKE01", threadTs: "1758510002.000001", root: "jira" };
-const PERMALINK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0INTAKE01/p1758510002000001";
+const PERMALINK = "https://example-workspace.slack.com/archives/C0INTAKE01/p1758510002000001";
 
 function jira(input: { description?: unknown; comments?: string[]; fail?: boolean } = {}) {
   const calls: Array<{ tool: string; args: Record<string, unknown> }> = [];
@@ -46,7 +46,7 @@ function memoryKv(initial: Record<string, unknown> = {}, fail: { get?: string[];
 
 const slack = {
   apiCall: async (method: string, args: Record<string, unknown>) =>
-    method === "chat.getPermalink" ? { ok: true, permalink: `https://<SLACK_WORKSPACE>.slack.com/archives/${String(args["channel"])}/p${String(args["message_ts"]).replace(".", "")}` } : { ok: true },
+    method === "chat.getPermalink" ? { ok: true, permalink: `https://example-workspace.slack.com/archives/${String(args["channel"])}/p${String(args["message_ts"]).replace(".", "")}` } : { ok: true },
 };
 
 test("filedFromSlack finds file_ticket's line in a plain or ADF description, and asks Jira for the description alone", async () => {
@@ -63,7 +63,7 @@ test("filedFromSlack finds file_ticket's line in a plain or ADF description, and
         type: "paragraph",
         content: [
           { type: "text", text: "Slack thread: " },
-          { type: "inlineCard", attrs: { url: "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899" } },
+          { type: "inlineCard", attrs: { url: "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899" } },
         ],
       },
     ],
@@ -71,7 +71,7 @@ test("filedFromSlack finds file_ticket's line in a plain or ADF description, and
   assert.deepEqual(await filedFromSlack(jira({ description: adf }).mcp, "TLSSN-51"), { status: "slack" });
 
   assert.deepEqual(await filedFromSlack(jira({ description: JIRA_FILED_DESCRIPTION }).mcp, "TLSSN-51"), { status: "not_slack" });
-  assert.deepEqual(await filedFromSlack(jira({ description: `${JIRA_FILED_DESCRIPTION}\nsee https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899` }).mcp, "TLSSN-51"), { status: "not_slack" }, "an unlabelled Slack link is not the filing line");
+  assert.deepEqual(await filedFromSlack(jira({ description: `${JIRA_FILED_DESCRIPTION}\nsee https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899` }).mcp, "TLSSN-51"), { status: "not_slack" }, "an unlabelled Slack link is not the filing line");
   assert.deepEqual(await filedFromSlack(jira({ comments: [backlinkComment(PERMALINK)] }).mcp, "TLSSN-51"), { status: "not_slack" }, "the desk's own backlink comment is not a Slack filing");
   assert.equal((await filedFromSlack(jira({ fail: true }).mcp, "TLSSN-51")).status, "unread");
   assert.deepEqual(await filedFromSlack({ names: () => [] } as unknown as HostMcpRegistry, "TLSSN-51"), { status: "not_connected" });

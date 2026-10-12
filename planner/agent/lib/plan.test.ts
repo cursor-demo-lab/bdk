@@ -70,7 +70,7 @@ test("exactly one base", () => {
 
 test("the brief carries the key, repo, shape, constraints, steps, and the merge rule", () => {
   const brief = implementationBrief(plan, { repo: "example-org/demo-repo" });
-  assert.match(brief, /^Implement Jira TLSSN-42 on example-org\/apj-gtm from main/);
+  assert.match(brief, /^Implement Jira TLSSN-42 on example-org\/demo-repo from main/);
   assert.match(brief, /branch name starts with TLSSN-42- and the pull request title with "TLSSN-42: "/);
   assert.match(brief, /Shape: `RowSource` gains/);
   assert.match(brief, /\n1\. Return an empty CSV/);
@@ -121,7 +121,7 @@ test("the ticket comment's brief carries the ticket URL, so the worker launches 
 
 test("with the filing thread, the brief links it under the ticket and asks for a Slack: line under Jira:", () => {
   const url = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42";
-  const slack = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899";
+  const slack = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899";
   const lines = implementationBrief(plan, { repo: "example-org/demo-repo", ticketUrl: url, slackUrl: slack }).split("\n");
   assert.deepEqual(lines.slice(1, 3), [`Ticket: ${url}`, `Slack thread: ${slack}`]);
   const first = lines.findIndex((line) => line.startsWith("- Description, first line:"));
@@ -132,7 +132,7 @@ test("with the filing thread, the brief links it under the ticket and asks for a
 });
 
 test("slackThreadUrl takes only a Slack archive permalink after the desk's label", () => {
-  const slack = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899";
+  const slack = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899";
   assert.equal(slackThreadUrl([`Filed.\n\nSlack thread: ${slack}`]), slack);
   assert.equal(slackThreadUrl(["no link", `Slack thread: <${slack}>`]), slack, "a markdown autolink from Jira's read-back");
   assert.equal(slackThreadUrl([`Slack thread: [${slack}|${slack}]`]), undefined, "a wiki link is not the desk's line");
@@ -176,8 +176,8 @@ test("the ticket comment starts with the sentinel and reads how, why, design, st
   assert.match(comment, /Synthesis decision: The explicit outcome is the base/);
   assert.match(comment, /Next step: Add the `empty` outcome/);
   assert.match(comment, /approve in the Slack thread/);
-  assert.match(comment, /Evidence: read the example-org\/apj-gtm checkout \(src\/export\/csv\.ts, src\/export\/csv\.test\.ts\)/);
-  assert.match(comment, /\nBrief:\nImplement Jira TLSSN-42 on example-org\/apj-gtm from main/);
+  assert.match(comment, /Evidence: read the example-org\/demo-repo checkout \(src\/export\/csv\.ts, src\/export\/csv\.test\.ts\)/);
+  assert.match(comment, /\nBrief:\nImplement Jira TLSSN-42 on example-org\/demo-repo from main/);
 });
 
 test("the approval digest sits between the sentinel and the body, one labelled paragraph each, with Brief: still last", () => {

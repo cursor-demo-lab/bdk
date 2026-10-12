@@ -382,7 +382,7 @@ function jiraFiledWorld(input: { description?: string; commentFails?: boolean; c
     },
     apiCall: async (method: string, args: Record<string, unknown>) => {
       if (method === "chat.getPermalink") {
-        return { ok: true, permalink: `https://<SLACK_WORKSPACE>.slack.com/archives/${String(args["channel"])}/p${String(args["message_ts"]).replace(".", "")}` };
+        return { ok: true, permalink: `https://example-workspace.slack.com/archives/${String(args["channel"])}/p${String(args["message_ts"]).replace(".", "")}` };
       }
       if (method.startsWith("reactions.")) reactions.push(`${method.replace("reactions.", "")} ${String(args["name"])} ${String(args["channel"])}:${String(args["timestamp"])}`);
       return { ok: true };
@@ -455,7 +455,7 @@ test("a Jira-filed ticket opens its intake root at Triaged, links it on the tick
   });
   assert.equal((world.kv[`ticket/${JIRA_FILED_KEY}`] as Record<string, unknown>)["originatorUserId"], undefined, "no Slack approver for a Jira filing");
   assert.deepEqual(world.reactions, [`add hourglass_flowing_sand ${INTAKE_CHANNEL}:${rootTs}`]);
-  const permalink = "https://<SLACK_WORKSPACE>.slack.com/archives/C0INTAKE01/p1758510002000001";
+  const permalink = "https://example-workspace.slack.com/archives/C0INTAKE01/p1758510002000001";
   assert.deepEqual(world.written, [backlinkComment(permalink)]);
   assert.match(world.written[0]!, /^Slack thread: https:\/\/cursor-demo-lab\.slack\.com\/archives\/C0INTAKE01\/p1758510002000001\n/);
   assert.equal((world.kv[`backlink/${JIRA_FILED_KEY}`] as Record<string, unknown>)["permalink"], permalink);
@@ -490,7 +490,7 @@ test("a transient backlink failure is retried inside the Triaged announcement, s
   world.state.comments.push(TRIAGE_COMMENT);
   await world.send(TRIAGED);
   assert.equal(world.posts.length, 3);
-  assert.deepEqual(world.written, [backlinkComment("https://<SLACK_WORKSPACE>.slack.com/archives/C0INTAKE01/p1758510002000001")]);
+  assert.deepEqual(world.written, [backlinkComment("https://example-workspace.slack.com/archives/C0INTAKE01/p1758510002000001")]);
   assert.equal(world.state.comments.filter((comment) => comment.body.startsWith("Slack thread:")).length, 1);
   assert.equal((world.kv[`backlink/${JIRA_FILED_KEY}`] as Record<string, unknown>)["threadTs"], "1758510002.000001");
 });
@@ -513,7 +513,7 @@ test("a backlink write Jira keeps refusing is retried on the next announcement, 
   const present = jiraFiledWorld();
   Object.assign(present.kv, { [`ticket/${JIRA_FILED_KEY}`]: failing.kv[`ticket/${JIRA_FILED_KEY}`] });
   present.state.status = "Planned";
-  present.state.comments.push(TRIAGE_COMMENT, { id: "20901", body: backlinkComment("https://<SLACK_WORKSPACE>.slack.com/archives/C0INTAKE01/p1758510002000001") }, PLAN_COMMENT);
+  present.state.comments.push(TRIAGE_COMMENT, { id: "20901", body: backlinkComment("https://example-workspace.slack.com/archives/C0INTAKE01/p1758510002000001") }, PLAN_COMMENT);
   await present.send(PLANNED);
   assert.deepEqual(present.written, [], "a comment already naming the root counts as written");
   assert.equal((present.kv[`backlink/${JIRA_FILED_KEY}`] as Record<string, unknown>)["threadTs"], "1758510002.000001");

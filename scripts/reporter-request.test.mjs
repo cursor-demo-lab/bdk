@@ -20,8 +20,8 @@ const { briefLinks } = await import("../factory-worker/agent/lib/pr-links.ts");
 const { parsePlanComment } = await import("../factory-desk/agent/lib/plan-comment.ts");
 const { SLACK_LIMITS, planBlocks } = await import("../factory-desk/agent/lib/plan-post.ts");
 
-const PERMALINK = "https://<SLACK_WORKSPACE>.slack.com/archives/C0EXAMPLE1/p1790366941085899";
-const FOREIGN = "https://<SLACK_WORKSPACE>.slack.com/archives/C0FOREIGN/p1111111111111111";
+const PERMALINK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899";
+const FOREIGN = "https://example-workspace.slack.com/archives/C0FOREIGN/p1111111111111111";
 
 const TLSSN_42_ROOT =
   '<@U0EXAMPLE2|factory> The "Transfer reference" box on the Move tokens form just stops accepting text at 60 characters, with no counter or message, so people think the keyboard broke.\n\nA customer typed a long invoice note, the last few words never appeared, and they only noticed on the review screen. The input has maxLength 60 but nothing tells you that.\n\nCould it show a live count under the field (like "42 / 60") and change the hint once you hit the limit? Keep the 60 limit and the "Optional note" placeholder as they are.\n*Sent using* <@U0EXAMPLE1|Cursor>';

@@ -248,7 +248,7 @@ test("file_ticket creates the issue and binds the Slack thread from session auth
 test("file_ticket puts the Slack thread permalink in the Jira description and marks the filer's message 👀", async () => {
   const c = ctx({ auth: slackAuth("C0123ABCD", "1758510000.123456") });
   const calls: Array<[string, Record<string, unknown>]> = [];
-  const permalink = "https://<SLACK_WORKSPACE>.slack.com/archives/C0123ABCD/p1758510000123456";
+  const permalink = "https://example-workspace.slack.com/archives/C0123ABCD/p1758510000123456";
   (c.context.host as Record<string, unknown>)["slack"] = {
     getClient: async () => ({
       apiCall: async (method: string, args: Record<string, unknown>) => {
