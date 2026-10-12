@@ -4,7 +4,7 @@ Superseded for the desk → pr-autofixer edge: the desk has no GitHub path and p
 
 # July event-driven approach for the factory (hosted v2)
 
-Read at: `<PRIVATE_MONOREPO>` `main` @ `9a4aaa485b78d36c9c68fa78043ed20749abaf57` (`packages/agent-serve` = `@cursor/bdk` 0.2.1 source, formerly `@cursor/july`); published `@cursor/july@0.2.1` `dist/docs` in `factory-desk/node_modules` (same text, `agent/` paths); `this repository` @ `2848a7537ac50c018a07a46ddab129c8aaec05eb` with the branch's uncommitted edits. Read-only; nothing deployed.
+Read at: `<PRIVATE_MONOREPO>` `main` @ `9a4aaa485b78d36c9c68fa78043ed20749abaf57` (`packages/agent-serve` = `@cursor/bdk` 0.2.1 source, formerly `@cursor/july`); published `@cursor/july@0.2.1` `dist/docs` in `factory-desk/node_modules` (same text, `agent/` paths). The original factory checkout that lived beside that monorepo is not in this snapshot. Read-only; nothing deployed.
 
 ## Recommendation
 

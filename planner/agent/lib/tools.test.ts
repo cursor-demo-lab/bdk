@@ -231,7 +231,7 @@ test("record_plan pins a chained session to its ticket whatever key the model ty
   assert.equal((result["tracker"] as Record<string, unknown>)["status"], "not_connected");
   assert.equal(tagged[0]?.["key"], "plan:TLSSN-42");
   assert.match(String(result["brief"]), /^Implement Jira TLSSN-42 /);
-  const ticketLine = `Ticket: https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42`;
+  const ticketLine = `Ticket: https://example.atlassian.net/browse/TLSSN-42`;
   assert.equal(String(result["brief"]).split("\n")[1], ticketLine);
   assert.match(String((tagged[0]?.["data"] as Record<string, unknown>)["comment"]), new RegExp(`\\nBrief:\\n[^\\n]+\\n${ticketLine.replace(/[.]/g, "\\.")}\\n`));
 });
@@ -287,7 +287,7 @@ test("record_plan comments but moves nothing when the ticket's status cannot be 
 });
 
 test("record_plan moves nothing when the Plan: comment is already there, in an eval, or unpinned", async () => {
-  const existing = jiraComment(plan, "example-org/demo-repo", "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42");
+  const existing = jiraComment(plan, "example-org/demo-repo", "https://example.atlassian.net/browse/TLSSN-42");
   const again = ctx({ continuationKey: "issue:TLSSN-42", tracker: { comments: [existing] } });
   const redelivered = (await recordPlan.execute!(plan as never, again.context as never)) as Record<string, unknown>;
   assert.deepEqual(redelivered["tracker"], { status: "already_commented", issueKey: "TLSSN-42" });
@@ -310,7 +310,7 @@ test("record_plan moves nothing when the Plan: comment is already there, in an e
 });
 
 test("record_plan whose Plan: comment is already there moves a ticket still in Triaged to Planned once", async () => {
-  const existing = jiraComment(plan, "example-org/demo-repo", "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42");
+  const existing = jiraComment(plan, "example-org/demo-repo", "https://example.atlassian.net/browse/TLSSN-42");
   const { context, trackerCalls } = ctx({ continuationKey: "issue:TLSSN-42", tracker: { comments: [existing], status: "Triaged" } });
   const result = (await recordPlan.execute!(plan as never, context as never)) as Record<string, unknown>;
   assert.deepEqual(result["tracker"], { status: "already_commented", issueKey: "TLSSN-42" });

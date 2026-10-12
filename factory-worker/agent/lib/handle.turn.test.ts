@@ -13,7 +13,7 @@ import { backgroundWork, BRIEF, ENV, fakeCreateAgent, fakeTracker, memoryKv, PLA
 // `agent.bound` and `turn.failed` events (channels/jira.ts) finish or fail
 // the launch through the pipeline's `bound` and `turnFailed`.
 
-const CLOUD = { cloudId: "https://<JIRA_SITE>.atlassian.net" };
+const CLOUD = { cloudId: "https://example.atlassian.net" };
 const NOW = new Date("2026-09-23T00:00:00.000Z");
 const CONTINUATION = "implement:TLSSN-42#10042";
 

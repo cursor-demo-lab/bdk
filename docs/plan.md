@@ -116,7 +116,7 @@ returns, and the deviations are recorded in `docs/edits.md`.
 ### Sign in and connect (per Cursor account, once)
 
 1. Cursor dashboard: connect GitHub for `<owner>/<repo>`.
-2. Cursor dashboard, MCP: connect Jira to `<JIRA_SITE>.atlassian.net`.
+2. Cursor dashboard, MCP: connect Jira to `example.atlassian.net`.
    `triage-jira/agent/mcp-connections/tracker.ts` reads it with
    `cursorAccount: true`. No Jira token in env.
 3. `npx -p @cursor/july@0.2.22 agent-sdk login` once. `serve` refuses to start signed

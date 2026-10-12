@@ -251,7 +251,7 @@ test("factoryOtelConfig names the slug's service and stage, and env overrides wi
 });
 
 test("the config carries no exporter, endpoint, or header: those stay in OTEL_* env", () => {
-  const env = { OTEL_EXPORTER_OTLP_ENDPOINT: "https://<GRAFANA_OTLP_HOST>/otlp", OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic c2VjcmV0" };
+  const env = { OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp.example.com/otlp", OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic c2VjcmV0" };
   const text = JSON.stringify(factoryOtelConfig({ env, slug: "factory-desk" }));
   assert.equal(text.includes("grafana"), false);
   assert.equal(text.includes("c2VjcmV0"), false);
@@ -401,7 +401,7 @@ test("the header is the only switch, and the endpoint defaults to the Grafana ga
   assert.equal(exportConfigured({ OTEL_EXPORTER_OTLP_HEADERS: "  " }), false);
   assert.equal(exportConfigured({ OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic MTpn" }), true);
   assert.equal(otlpEndpoint({}), GRAFANA_OTLP_ENDPOINT);
-  assert.equal(GRAFANA_OTLP_ENDPOINT, "https://<GRAFANA_OTLP_HOST>/otlp");
+  assert.equal(GRAFANA_OTLP_ENDPOINT, "https://otlp.example.com/otlp");
   assert.equal(otlpEndpoint({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/otlp/v1/traces" }), "http://127.0.0.1:4318/otlp");
   assert.equal(otlpEndpoint({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/otlp/" }), "http://127.0.0.1:4318/otlp");
 });

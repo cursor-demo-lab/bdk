@@ -4,7 +4,7 @@ import type { HostMcpCallResult, HostMcpRegistry, HostMcpToolInfo } from "@curso
 import { actuate } from "./actuate.js";
 import { transitionFrom } from "./transition.js";
 
-const SITE = "https://<JIRA_SITE>.atlassian.net";
+const SITE = "https://example.atlassian.net";
 const TRACKER = { kind: "jira", connectionName: "tracker" } as const;
 let savedCloudId: string | undefined;
 

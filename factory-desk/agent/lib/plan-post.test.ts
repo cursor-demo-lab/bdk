@@ -180,7 +180,7 @@ test("fit helpers never split an entity or a surrogate pair", () => {
 test("the ticket and plan-comment URLs come from the site, the key, and the comment id", () => {
   assert.equal(jiraSiteUrl({ JIRA_CLOUD_ID: "https://acme.atlassian.net/" }), "https://acme.atlassian.net");
   assert.equal(jiraSiteUrl({ JIRA_CLOUD_ID: "0f6a3e2c-1111-4222-8333-944455556666" }), undefined);
-  assert.equal(jiraSiteUrl({}), "https://<JIRA_SITE>.atlassian.net");
+  assert.equal(jiraSiteUrl({}), "https://example.atlassian.net");
   assert.equal(ticketUrl({ issueKey: "TLSSN-7", site: "https://acme.atlassian.net" }), "https://acme.atlassian.net/browse/TLSSN-7");
   assert.equal(ticketUrl({ issueKey: "TLSSN-7", url: TICKET, site: "https://acme.atlassian.net" }), TICKET);
   assert.equal(ticketUrl({ issueKey: "TLSSN-7" }), undefined);

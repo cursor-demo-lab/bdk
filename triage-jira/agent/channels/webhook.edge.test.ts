@@ -86,7 +86,7 @@ async function deliver(description: string, t: ReturnType<typeof tracker>, field
     webhookEvent: "jira:issue_created",
     issue: {
       key: "TLSSN-40",
-      self: "https://<JIRA_SITE>.atlassian.net/rest/api/3/issue/10400",
+      self: "https://example.atlassian.net/rest/api/3/issue/10400",
       fields: { summary: "Login fails on Safari 17", description, status: { name: "To Do" }, issuetype: { name: "Task" }, reporter: { displayName: "Sam" }, ...fields },
     },
   };

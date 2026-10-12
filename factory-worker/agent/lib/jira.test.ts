@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { HostMcpCallResult, HostMcpRegistry, HostMcpToolInfo } from "@cursor/july";
 import { addComment, issueStatus, pickProperty, readComments, TRACKER_PROBE_TOOL, TRACKER_RETRY_MS, trackerRetryMs, trackerUnusable, transitionIssue } from "./jira.js";
 
-const CLOUD = { cloudId: "https://<JIRA_SITE>.atlassian.net" };
+const CLOUD = { cloudId: "https://example.atlassian.net" };
 
 type Call = { tool: string; args: Record<string, unknown> };
 

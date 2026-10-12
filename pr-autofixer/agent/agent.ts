@@ -35,6 +35,6 @@ export default defineAgent({
     ],
     // OTLP export (agent/otel.ts) goes to the Grafana Cloud stack's gateway in <GRAFANA_REGION>;
     // the endpoint is in lib/factory-otel.ts and only OTEL_EXPORTER_OTLP_HEADERS is a secret.
-    egressDomains: ["api.github.com", "github.com", "slack.com", "<GRAFANA_OTLP_HOST>"],
+    egressDomains: ["api.github.com", "github.com", "slack.com", "otlp.example.com"],
   },
 });

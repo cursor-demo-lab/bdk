@@ -7,7 +7,7 @@ import requestPlan from "../tools/request_plan.js";
 import { issueStatus, transitionFrom, transitionIssue } from "./jira.js";
 
 const STATUS_ENV = ["FACTORY_STATUS_TODO", "FACTORY_STATUS_TRIAGED", "FACTORY_STATUS_PLANNED", "FACTORY_STATUS_APPROVED", "FACTORY_STATUS_IN_PROGRESS", "JIRA_CLOUD_ID"] as const;
-const CLOUD = { cloudId: "https://<JIRA_SITE>.atlassian.net" };
+const CLOUD = { cloudId: "https://example.atlassian.net" };
 const saved: Record<string, string | undefined> = {};
 
 before(() => {
@@ -308,7 +308,7 @@ function rovoIssue(status: string, options: { text?: string } = {}): HostMcpCall
   };
   return {
     content: [{ type: "text", text: options.text ?? JSON.stringify(rest) }],
-    structuredContent: { issues: { nodes: [{ ...rest, webUrl: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42" }] } },
+    structuredContent: { issues: { nodes: [{ ...rest, webUrl: "https://example.atlassian.net/browse/TLSSN-42" }] } },
   };
 }
 
@@ -339,7 +339,7 @@ test("issueStatus reads the status from structuredContent's issues.nodes when th
 
 test("transitionIssue finds the transition list in whichever reply channel carries it", async () => {
   const replies: HostMcpCallResult[] = [
-    { content: [{ type: "text", text: JSON.stringify(WORKFLOW) }], structuredContent: { issue: { key: "TLSSN-42", webUrl: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42" } } },
+    { content: [{ type: "text", text: JSON.stringify(WORKFLOW) }], structuredContent: { issue: { key: "TLSSN-42", webUrl: "https://example.atlassian.net/browse/TLSSN-42" } } },
     { content: [{ type: "text", text: "3 transitions" }], structuredContent: { transitions: { nodes: WORKFLOW.transitions } } },
   ];
   for (const listed of replies) {

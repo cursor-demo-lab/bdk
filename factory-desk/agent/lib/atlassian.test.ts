@@ -4,7 +4,7 @@ import type { HostMcpCallResult, HostMcpRegistry, HostMcpToolInfo } from "@curso
 import { adfText, jiraCloudId, withCloudId } from "./atlassian.js";
 import { addComment, createIssue, issueStatus, readCommentRecords, readComments, transitionIssue } from "./jira.js";
 
-const SITE = "https://<JIRA_SITE>.atlassian.net";
+const SITE = "https://example.atlassian.net";
 const ENV = ["JIRA_CLOUD_ID", "FACTORY_DESK_JIRA_PROJECT", "FACTORY_JIRA_PROJECTS"] as const;
 const saved: Record<string, string | undefined> = {};
 
@@ -146,7 +146,7 @@ test("with the Atlassian names, each verb picks its Atlassian tool and passes th
       status: "created",
       issueKey: "TLSSN-43",
       project: "TLSSN",
-      url: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-43",
+      url: "https://example.atlassian.net/browse/TLSSN-43",
     });
     assert.deepEqual(calls.at(-1), {
       tool: "createJiraIssue",

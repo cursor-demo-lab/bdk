@@ -61,7 +61,7 @@ machine-readable summary; record each command and the package version in
 ### Sign in and connect (per Cursor account, once)
 
 1. Cursor dashboard: connect GitHub for `apj-gtm-factory/*`.
-2. Cursor dashboard: MCP, connect **Jira** to `<JIRA_SITE>.atlassian.net`.
+2. Cursor dashboard: MCP, connect **Jira** to `example.atlassian.net`.
    `triage-jira` reads it through `agent/mcp-connections/tracker.ts`
    (`cursorAccount: true, servers: ["Jira"]`). No Jira secret lives in env.
 3. `agent-sdk login` once; the four projects share the stored credential.
@@ -297,7 +297,7 @@ account is connected to, and the gate is what that account can reach:
   below).
 - **Account hygiene.** The training Cursor account's GitHub connection covers
   only the sandbox org and its Jira MCP connection points at
-  `<JIRA_SITE>.atlassian.net`. `cursorAccount` refuses to mint for repos
+  `example.atlassian.net`. `cursorAccount` refuses to mint for repos
   the account has not connected, so even a wrong `repos.ts` fails at startup.
   This is enforced by the platform, not by our code, which is the point.
 - **Eval sessions.** Inherited. `actuate()` returns `skipped: eval`,

@@ -130,7 +130,7 @@ test("a plain reply in a thread awaiting information goes onto the ticket and ba
     {
       tool: "addCommentToJiraIssue",
       args: {
-        cloudId: "https://<JIRA_SITE>.atlassian.net",
+        cloudId: "https://example.atlassian.net",
         issueIdOrKey: "TLSSN-42",
         comment: [
           "Detail from Slack: TLSSN-42",
@@ -140,11 +140,11 @@ test("a plain reply in a thread awaiting information goes onto the ticket and ba
         ].join("\n"),
       },
     },
-    { tool: "transitionJiraIssue", args: { cloudId: "https://<JIRA_SITE>.atlassian.net", issueIdOrKey: "TLSSN-42", transition: { id: "41" } } },
-    { tool: "transitionJiraIssue", args: { cloudId: "https://<JIRA_SITE>.atlassian.net", issueIdOrKey: "TLSSN-42", transition: { id: "11" } } },
+    { tool: "transitionJiraIssue", args: { cloudId: "https://example.atlassian.net", issueIdOrKey: "TLSSN-42", transition: { id: "41" } } },
+    { tool: "transitionJiraIssue", args: { cloudId: "https://example.atlassian.net", issueIdOrKey: "TLSSN-42", transition: { id: "11" } } },
   ]);
   assert.equal(tracker.status(), "Triaged");
-  assert.deepEqual(posts, ["Added your reply to TLSSN-42 and sent it back to the planner. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>"]);
+  assert.deepEqual(posts, ["Added your reply to TLSSN-42 and sent it back to the planner. <https://example.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>"]);
   assert.equal(kv[AWAITING], undefined);
   assert.equal((kv["thread-detail/C0EXAMPLE1:1758510010.000100"] as Record<string, unknown>)["state"], "done");
   assert.equal((kv["loader/TLSSN-42"] as Record<string, unknown>)["phase"], "replanning");
@@ -307,7 +307,7 @@ test("a reply that landed but could not reach the planner says how to send it, a
   const tracker = jira({ status: "Triaged", offersToDo: false });
   const { posts } = await handle(kv, tracker, reply("It is src/routes/export.ts"));
   assert.deepEqual(posts, [
-    "Added your reply to TLSSN-42, but could not send it back to the planner (no_transition). Say `plan TLSSN-42` here to try again, or move it to To Do and back to Triaged in Jira. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>",
+    "Added your reply to TLSSN-42, but could not send it back to the planner (no_transition). Say `plan TLSSN-42` here to try again, or move it to To Do and back to Triaged in Jira. <https://example.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>",
   ]);
   assert.deepEqual(kv[AWAITING], WAITING);
 });

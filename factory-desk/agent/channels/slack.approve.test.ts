@@ -139,8 +139,8 @@ test("only a message that is just approve KEY, with an optional mention, is the 
   assert.equal(approveTarget("  Approve TLSSN-42!  "), "TLSSN-42");
   // TLSSN-25 live: Cursor Slack-send stores the typed line plus this footer in `text`.
   assert.equal(approveTarget("approve TLSSN-25\n*Sent using* <@U0EXAMPLE1|Cursor>"), "TLSSN-25");
-  assert.equal(approveTarget("approve <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-25|TLSSN-25>"), "TLSSN-25");
-  assert.equal(approveTarget("approve <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-25>"), "TLSSN-25");
+  assert.equal(approveTarget("approve <https://example.atlassian.net/browse/TLSSN-25|TLSSN-25>"), "TLSSN-25");
+  assert.equal(approveTarget("approve <https://example.atlassian.net/browse/TLSSN-25>"), "TLSSN-25");
   for (const text of ["approve TLSSN-42 and deny TLSSN-7", "looks good, approve TLSSN-42", "approve file", "don't approve TLSSN-42", "approve TLSSN-42?", "approve TLSSN-42 and thanks\n*Sent using* <@U0EXAMPLE1|Cursor>"]) {
     assert.equal(approveTarget(text), undefined, text);
   }

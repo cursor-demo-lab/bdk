@@ -92,7 +92,7 @@ test("declares pr-write cursorAccount on the sandbox (for the description's link
   assert.equal(account.permissions, "pr-write");
 });
 
-const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-9";
+const JIRA = "https://example.atlassian.net/browse/TLSSN-9";
 const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789";
 const PLAN = ["Plan: TLSSN-9 CSV export", "Brief:", "Implement Jira TLSSN-9 on cursor-demo-lab/marsbank from main: CSV export", `Ticket: ${JIRA}`, `Slack thread: ${SLACK}`, "", "Problem: x"].join("\n");
 

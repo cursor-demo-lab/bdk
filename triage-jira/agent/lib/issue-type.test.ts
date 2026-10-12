@@ -4,7 +4,7 @@ import type { HostMcpCallResult, HostMcpToolInfo } from "@cursor/july";
 import { ISSUE_TYPES_OPERATION, projectIssueTypes, projectOf, sameTypeName, setIssueType } from "./issue-type.js";
 
 const S = { type: "string" };
-const SITE = "https://<JIRA_SITE>.atlassian.net";
+const SITE = "https://example.atlassian.net";
 
 function tool(name: string, properties: Record<string, unknown>): HostMcpToolInfo {
   return { name, inputSchema: { type: "object", properties } as HostMcpToolInfo["inputSchema"] };

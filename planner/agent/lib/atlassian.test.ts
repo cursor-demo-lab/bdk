@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import type { HostMcpCallResult, HostMcpRegistry, HostMcpToolInfo } from "@cursor/july";
 import { commentOnTicket, readTicket, transitionIssue } from "./jira.js";
 
-const SITE = "https://<JIRA_SITE>.atlassian.net";
+const SITE = "https://example.atlassian.net";
 let savedCloudId: string | undefined;
 
 before(() => {

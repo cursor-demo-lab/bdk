@@ -86,9 +86,9 @@ export default defineEval({
         t.maxToolCalls(1);
         t.notCalledTool(APPROVE_TICKET);
         t.notCalledTool(CLOUD_LAUNCH);
-        t.check(t.reply, includes(/https:\/\/<JIRA_SITE>\.atlassian\.net\/browse\/EVALX-1/));
+        t.check(t.reply, includes(/https:\/\/example\.atlassian\.net\/browse\/EVALX-1/));
         // The tool's `reply` verbatim (TLSSN-36): the key link once and the triage it was filed with and who made it; no look-ahead.
-        t.check(t.reply, includes(/^\[EVALX-1\]\(https:\/\/<JIRA_SITE>\.atlassian\.net\/browse\/EVALX-1\) is filed\. Triaged by (Jev|Grok 4\.6 Fast \([^)]+\)): (Bug|Task|Story), (low|medium|high|urgent) severity( \(\d{1,3}% confidence\))?\./));
+        t.check(t.reply, includes(/^\[EVALX-1\]\(https:\/\/example\.atlassian\.net\/browse\/EVALX-1\) is filed\. Triaged by (Jev|Grok 4\.6 Fast \([^)]+\)): (Bug|Task|Story), (low|medium|high|urgent) severity( \(\d{1,3}% confidence\))?\./));
         t.check(
           t.reply,
           satisfies(

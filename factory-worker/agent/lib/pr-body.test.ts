@@ -5,7 +5,7 @@ import { linkablePullRequest, linkTicketInBody, type PullRequestApi } from "./pr
 import type { PrDelivery } from "./pr-decide.js";
 import { fakeTracker, memoryKv, type MemoryKv } from "./testing/fakes.js";
 
-const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-28";
+const JIRA = "https://example.atlassian.net/browse/TLSSN-28";
 const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
 const TARGET = { issueKey: "TLSSN-28", repository: "cursor-demo-lab/marsbank", number: 25 };
 const PATH = "/repos/cursor-demo-lab/marsbank/pulls/25";

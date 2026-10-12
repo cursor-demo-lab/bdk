@@ -116,7 +116,7 @@ test("commentOnTicket over the hosted bridge posts the comment through addOrEdit
   const outcome = await commentOnTicket(bridgedRegistry({ calls }), { issueKey: "TLSSN-42", body }, { [PROJECTS_ENV]: "TLSSN" });
   assert.deepEqual(outcome, { status: "commented", issueKey: "TLSSN-42" });
   const added = calls.find((call) => call.tool === `${PREFIX}addOrEditJiraIssueComment`);
-  assert.deepEqual(added?.args, { issueIdOrKey: "TLSSN-42", commentBody: body, cloudId: "https://<JIRA_SITE>.atlassian.net" });
+  assert.deepEqual(added?.args, { issueIdOrKey: "TLSSN-42", commentBody: body, cloudId: "https://example.atlassian.net" });
   // The dedupe read went through v2's executeRead, which the allowlist keeps.
   assert.ok(calls.some((call) => call.tool === `${PREFIX}executeRead` && call.args["name"] === "listJiraIssueComments"));
 });
@@ -129,7 +129,7 @@ test("transitionIssue over the hosted bridge lists transitions through executeRe
     calls.map((call) => call.tool),
     [`${PREFIX}executeRead`, `${PREFIX}transitionJiraIssue`]
   );
-  assert.deepEqual(calls[1]?.args, { issueIdOrKey: "TLSSN-42", transition: { id: "21" }, cloudId: "https://<JIRA_SITE>.atlassian.net" });
+  assert.deepEqual(calls[1]?.args, { issueIdOrKey: "TLSSN-42", transition: { id: "21" }, cloudId: "https://example.atlassian.net" });
 });
 
 test("a hosted write tool outside the allowlist is refused on call as on list", async () => {

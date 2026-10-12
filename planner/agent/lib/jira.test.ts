@@ -191,7 +191,7 @@ test("issueStatus asks for the status alone and reads Rovo's issues.nodes envelo
   const calls: { tool: string; args: Record<string, unknown> }[] = [];
   assert.equal(await issueStatus(rovoRegistry({ status: "In Progress", text: "TLSSN-42 Retry is In Progress.", calls }), "TLSSN-42"), "In Progress");
   assert.deepEqual(calls, [
-    { tool: "Factory_Atlassian-getJiraIssue", args: { issueIdOrKey: "TLSSN-42", fields: ["status"], cloudId: "https://<JIRA_SITE>.atlassian.net" } },
+    { tool: "Factory_Atlassian-getJiraIssue", args: { issueIdOrKey: "TLSSN-42", fields: ["status"], cloudId: "https://example.atlassian.net" } },
   ]);
 });
 

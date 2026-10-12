@@ -94,7 +94,7 @@ test("why.preserve holds ten lines, reporter constraints first, and all ten reac
 });
 
 test("the brief tells the implementer how the pull request title and description read", () => {
-  const url = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42";
+  const url = "https://example.atlassian.net/browse/TLSSN-42";
   const brief = implementationBrief(plan, { repo: "example-org/demo-repo", ticketUrl: url });
   assert.equal(brief.split("\n")[1], `Ticket: ${url}`);
   assert.match(brief, /- Title: "TLSSN-42: " then what the change does, in under 72 characters\./);
@@ -113,14 +113,14 @@ test("without a ticket URL the brief names the key instead and has no Ticket lin
 });
 
 test("the ticket comment's brief carries the ticket URL, so the worker launches with it", () => {
-  const url = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42";
+  const url = "https://example.atlassian.net/browse/TLSSN-42";
   const comment = jiraComment(plan, "example-org/demo-repo", url);
   const brief = comment.slice(comment.lastIndexOf("\nBrief:\n") + "\nBrief:\n".length);
   assert.equal(brief, implementationBrief(plan, { repo: "example-org/demo-repo", ticketUrl: url }));
 });
 
 test("with the filing thread, the brief links it under the ticket and asks for a Slack: line under Jira:", () => {
-  const url = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42";
+  const url = "https://example.atlassian.net/browse/TLSSN-42";
   const slack = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790366941085899";
   const lines = implementationBrief(plan, { repo: "example-org/demo-repo", ticketUrl: url, slackUrl: slack }).split("\n");
   assert.deepEqual(lines.slice(1, 3), [`Ticket: ${url}`, `Slack thread: ${slack}`]);
@@ -148,8 +148,8 @@ test("slackThreadUrl takes only a Slack archive permalink after the desk's label
 });
 
 test("ticketBrowseUrl builds a browse link from a site URL and nothing from an opaque cloud id", () => {
-  assert.equal(ticketBrowseUrl("TLSSN-42", "https://<JIRA_SITE>.atlassian.net"), "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42");
-  assert.equal(ticketBrowseUrl("TLSSN-42", "https://<JIRA_SITE>.atlassian.net/"), "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42");
+  assert.equal(ticketBrowseUrl("TLSSN-42", "https://example.atlassian.net"), "https://example.atlassian.net/browse/TLSSN-42");
+  assert.equal(ticketBrowseUrl("TLSSN-42", "https://example.atlassian.net/"), "https://example.atlassian.net/browse/TLSSN-42");
   assert.equal(ticketBrowseUrl("TLSSN-42", "4f1c2b3a-0000-4000-8000-123456789abc"), undefined);
   assert.equal(ticketBrowseUrl("TLSSN-42", "http://jira.internal"), undefined);
 });

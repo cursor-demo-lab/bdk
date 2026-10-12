@@ -190,6 +190,6 @@ under `candidates/` as the record of the decision:
   `npx agent-sdk docs` from a project with `@cursor/july` installed).
 - `<owner>/<repo>` is the training sandbox repository. The committed
   value must never be a production repo.
-- Jira examples use project `TLSSN` on `<JIRA_SITE>.atlassian.net`,
+- Jira examples use project `TLSSN` on `example.atlassian.net`,
   matching the Atlassian sibling.
 - Secret names appear in these docs. Values never do.

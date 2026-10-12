@@ -18,7 +18,7 @@ these disabled.
 
 Four webhooks, one per consuming slug (Automation has five rules because the
 desk's comment rule is separate; here the desk's one webhook takes both). Register them as a Jira site admin
-at `https://<JIRA_SITE>.atlassian.net/plugins/servlet/webhooks`
+at `https://example.atlassian.net/plugins/servlet/webhooks`
 (Settings cog → System → WebHooks → Create a WebHook). Status: **enabled**.
 Leave "Exclude body" unchecked.
 

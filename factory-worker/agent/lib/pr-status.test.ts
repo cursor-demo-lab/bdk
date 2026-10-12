@@ -569,7 +569,7 @@ test("a PR the worker undrafts on open writes no note and does not throw", async
 
 test("with ctx.github, an opened implement PR gets its Slack line before the move, and an edit that drops it gets it back without a move", async () => {
   const slack = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789";
-  const jira = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-9";
+  const jira = "https://example.atlassian.net/browse/TLSSN-9";
   const plan = ["Plan: TLSSN-9 CSV export", "Brief:", "Implement Jira TLSSN-9 on cursor-demo-lab/marsbank from main: CSV export", `Ticket: ${jira}`, `Slack thread: ${slack}`, "", "Problem: x"].join("\n");
   const tracker = fakeTracker({ status: "In Progress", comments: [plan] });
   const w = world({ status: "In Progress", kv: await launchedKv(), tracker });

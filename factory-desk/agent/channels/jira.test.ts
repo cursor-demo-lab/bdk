@@ -478,7 +478,7 @@ test("a Jira-filed ticket opens its intake root at Triaged, links it on the tick
   assert.match(String(plan["text"]), /TLSSN-51 is planned/);
   assert.match(String(plan["text"]), /was filed in Jira: to start the build, move the card to Approved in Jira\./);
   assert.equal(world.posts.length, 4, "the planner crumb is deleted, not reposted");
-  assert.deepEqual(world.updates.map((update) => [update["channel"], update["ts"], String(update["text"]).split("\n")[1]]), [[INTAKE_CHANNEL, rootTs, "Status: *Planned*  ·  <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-51|TLSSN-51 on Jira>"]]);
+  assert.deepEqual(world.updates.map((update) => [update["channel"], update["ts"], String(update["text"]).split("\n")[1]]), [[INTAKE_CHANNEL, rootTs, "Status: *Planned*  ·  <https://example.atlassian.net/browse/TLSSN-51|TLSSN-51 on Jira>"]]);
   assert.deepEqual(world.reactions.slice(1), [`add memo ${INTAKE_CHANNEL}:${rootTs}`, `remove hourglass_flowing_sand ${INTAKE_CHANNEL}:${rootTs}`]);
   assert.equal(world.written.length, 1, "the backlink is written once");
   assert.equal(world.kv[`hop-watch/${JIRA_FILED_KEY}`], undefined);
@@ -704,7 +704,7 @@ test("the planner's Needs info comment tells the thread what it checked, why the
       "\u2022 Ticket claimed: CSV export truncates the last column when the download filename contains spaces.",
       "\u2022 On main: No CSV export or Content-Disposition code on main.",
       "\u2022 Searched: csv export; Content-Disposition",
-      "Next: reply here with a file path, error message, or steps that fail on main. If you edit the ticket in Jira instead, say `@factory plan TLSSN-42` here. If it no longer applies, close the ticket. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10301|Needs info comment>",
+      "Next: reply here with a file path, error message, or steps that fail on main. If you edit the ticket in Jira instead, say `@factory plan TLSSN-42` here. If it no longer applies, close the ticket. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10301|Needs info comment>",
     ].join("\n")
   );
   assert.equal((kv["announced/TLSSN-42:Needs info:10301"] as Record<string, unknown>)["state"], "done");
@@ -725,7 +725,7 @@ test("a Plan stopped comment tells the thread the planner's reason and how to ru
     [
       "<@U0ALICE01> TLSSN-42 has no plan: the planner stopped before it recorded one.",
       "Why: The planning run failed: resource_exhausted.",
-      "Next: say `@factory plan TLSSN-42` here to run the planner again. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10302|Plan stopped comment>",
+      "Next: say `@factory plan TLSSN-42` here to run the planner again. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10302|Plan stopped comment>",
     ].join("\n")
   );
   assert.equal((kv["announced/TLSSN-42:Plan stopped:10302"] as Record<string, unknown>)["state"], "done");
@@ -870,7 +870,7 @@ test("when Jira cannot be read back, the signed comment still tells the thread",
   await deliverComment(commented("Needs info: TLSSN-42", { id: "" }), bare.kv, bare.posts, jira.mcp);
   assert.equal(
     bare.posts[0]?.["text"],
-    "<@U0ALICE01> TLSSN-42 needs more information, so it has no plan. The planner checked the sandbox and did not find the problem the ticket describes.\nNext: reply here with a file path, error message, or steps that fail on the sandbox. If you edit the ticket in Jira instead, say `@factory plan TLSSN-42` here. If it no longer applies, close the ticket. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>"
+    "<@U0ALICE01> TLSSN-42 needs more information, so it has no plan. The planner checked the sandbox and did not find the problem the ticket describes.\nNext: reply here with a file path, error message, or steps that fail on the sandbox. If you edit the ticket in Jira instead, say `@factory plan TLSSN-42` here. If it no longer applies, close the ticket. <https://example.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>"
   );
   assert.ok(Object.keys(bare.kv).some((key) => /^announced\/TLSSN-42:Needs info:body-[0-9a-f]{16}$/.test(key)));
 });
@@ -937,7 +937,7 @@ test("Triage stopped tells the thread the ticket is still in To Do, triage's rea
         [
           "<@U0ALICE01> TLSSN-42 is still in To Do: triage stopped before it moved the ticket to Triaged, so the planner has not started.",
           "Why: The triage run failed: resource_exhausted.",
-          "Next: say `@factory plan TLSSN-42` here to send it to the planner. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10401|Triage stopped comment>",
+          "Next: say `@factory plan TLSSN-42` here to send it to the planner. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10401|Triage stopped comment>",
         ].join("\n"),
       ],
     ]
@@ -974,7 +974,7 @@ test("Launch failed tells the thread nothing is being built, the reason, and how
     posts[0]?.["text"],
     [
       "<@U0ALICE01> TLSSN-42 is Approved, but nothing is being built: the cloud agent launch failed (service_unavailable).",
-      "Next: move TLSSN-42 to Planned in Jira, then say `@factory approve TLSSN-42` here to launch it again. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10501|Launch failed comment>",
+      "Next: move TLSSN-42 to Planned in Jira, then say `@factory approve TLSSN-42` here to launch it again. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10501|Launch failed comment>",
     ].join("\n")
   );
   assert.equal(posts[0]?.["thread_ts"], "1758510000.123456");
@@ -1021,7 +1021,7 @@ test("Approved without a plan, in the worker's current and earlier wording, says
       posts[0]?.["text"],
       [
         "<@U0ALICE01> TLSSN-42 is Approved, but nothing is being built: the ticket has no plan, so the worker launched nothing.",
-        "Next: move TLSSN-42 back to Triaged in Jira to run the planner. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10502|Approved without a plan comment>",
+        "Next: move TLSSN-42 back to Triaged in Jira to run the planner. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10502|Approved without a plan comment>",
       ].join("\n"),
       body
     );
@@ -1037,7 +1037,7 @@ test("the worker's note that its pull request did not move the ticket is relayed
   assert.deepEqual(await response.json(), { ok: true, kind: "move_skipped", issueKey: "TLSSN-42" });
   assert.equal(
     posts[0]?.["text"],
-    "The factory did not move TLSSN-42 to In Review for cursor-demo-lab/marsbank#13: TLSSN-42 is Planned, not In Progress, so the worker left it there. Move the card by hand if this pull request is the implementation. <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=10601|Move skipped comment>"
+    "The factory did not move TLSSN-42 to In Review for cursor-demo-lab/marsbank#13: TLSSN-42 is Planned, not In Progress, so the worker left it there. Move the card by hand if this pull request is the implementation. <https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=10601|Move skipped comment>"
   );
   assert.deepEqual(jira.calls, ["getJiraIssue"]);
 });

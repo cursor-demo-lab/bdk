@@ -164,7 +164,7 @@ export const HOSTED_EXECUTION_DURATION_BUCKETS_MS: readonly number[] = [
 ];
 
 /** The Grafana Cloud stack's OTLP gateway (<GRAFANA_STACK>, <GRAFANA_REGION>). Not a secret. */
-export const GRAFANA_OTLP_ENDPOINT = "https://<GRAFANA_OTLP_HOST>/otlp";
+export const GRAFANA_OTLP_ENDPOINT = "https://otlp.example.com/otlp";
 
 /**
  * Upper bound on one OTLP request, for every signal. A pod's first request

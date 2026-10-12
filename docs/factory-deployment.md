@@ -115,7 +115,7 @@ steps 1 to 6 instead.
 | GitHub | Sandbox `cursor-demo-lab/marsbank` with a CI workflow, Bugbot on, auto-merge off. The `cursor-demo-lab` installation linked to the team (dashboard, team selected, Integrations → GitHub → Manage) | After the deploy, `agent-sdk deployment <slug>` shows `watching: cursor-demo-lab/marsbank` on the five GitHub slugs |
 | Atlassian | Team MCP server `Factory Atlassian` (id `<MCP_SERVER_ID>`, HTTP, `https://mcp.atlassian.com/v2/mcp`), added by a team admin. The plugin's Atlassian server surfaces per user and no slug sees it | Listed under Team MCP Servers. The per-slug consent comes after the first deploy (section 3) |
 | Slack | Workspace `<SLACK_WORKSPACE>`, intake channel `#mars-eng-intake` (`C0EXAMPLE1`). `factory-desk` is the only Slack app | `@Factory hello` in the channel gets a reply once the wizard is done (section 3) |
-| Jira | Project `TLSSN` on `<JIRA_SITE>.atlassian.net` (id `11339`), seven statuses with global transitions: To Do, Triaged, Planned, Approved, In Progress, In Review, Done. A TLSSN project admin for Automation | Any TLSSN issue offers all seven statuses |
+| Jira | Project `TLSSN` on `example.atlassian.net` (id `11339`), seven statuses with global transitions: To Do, Triaged, Planned, Approved, In Progress, In Review, Done. A TLSSN project admin for Automation | Any TLSSN issue offers all seven statuses |
 
 ## 2. Jira delivery: one source per slug
 
@@ -1175,7 +1175,7 @@ them when the run is over.
 | What | Suggested value | Notes |
 | --- | --- | --- |
 | Sandbox repository | `cursor-demo-lab/marsbank-staging` | On `cursor-demo-lab`, so the team's `cursor` installation (`155310938`) covers it. CI workflow, Bugbot on, auto-merge off, as on marsbank |
-| Jira project | a new key on `<JIRA_SITE>.atlassian.net`, for example `TLSTG` | The same seven statuses with global transitions. Never reuse `TLSSN` |
+| Jira project | a new key on `example.atlassian.net`, for example `TLSTG` | The same seven statuses with global transitions. Never reuse `TLSSN` |
 | Slack channel | a new private channel, for example `#mars-eng-intake-staging` | Invite only the staging bot. Record its `C…` id |
 | Slack app | wizard for `factory-desk-staging`, name `Factory Staging` | Below. A separate app, so a staging token can never post as the production bot. A copied production token is caught twice. `node scripts/doctor.mjs` with the staging values fails its `slack-app` check when the bot token belongs to the production app (`A0EXAMPLE1`). A staging desk that finds the production app behind its token (`auth.test`, then `bots.info`) takes no Slack event, Jira delivery, or review wake, and logs `"desk":"staging_refused","slackApp":"A0EXAMPLE1"` on stderr |
 | Ops bot (optional) | a separate Slack app with `chat:write` only | `FACTORY_OPS_SLACK_BOT_TOKEN`, for Phase 0 summaries and the ops failure funnel. With `FACTORY_OPS_SLACK_CHANNEL`, every slug's ops failure funnel posts through it (section 3, KV Phase 1 K7); both optional, and unset means no post. The doctor warns if it is the desk's token |
@@ -2103,9 +2103,9 @@ The July behaviours above, and why the factory works around them, are in
 The stack's region is `<GRAFANA_REGION>`: `dig CNAME
 <GRAFANA_STACK>.grafana.net` answers
 `<GRAFANA_HG_GATEWAY_HOST>`, and
-`<GRAFANA_OTLP_HOST>` resolves (no `-0` variant
+`otlp.example.com` resolves (no `-0` variant
 does). So the code's endpoint is
-`https://<GRAFANA_OTLP_HOST>/otlp`, sent as
+`https://otlp.example.com/otlp`, sent as
 OTLP/HTTP protobuf to `/v1/traces`, `/v1/metrics`, and `/v1/logs`. Confirm
 it in the portal
 ([Grafana: send data to the OTLP endpoint](https://grafana.com/docs/grafana-cloud/send-data/otlp/send-data-otlp/)):
@@ -2116,7 +2116,7 @@ match) and the **Instance ID**, a number, which is the Basic-auth user. Do
 not use **Generate now** there if you create the token below.
 
 Every `agent/agent.ts` allowlists
-`<GRAFANA_OTLP_HOST>` in `hosting.egressDomains`.
+`otlp.example.com` in `hosting.egressDomains`.
 If the portal shows another host, change `GRAFANA_OTLP_ENDPOINT` and all
 six egress entries and redeploy. A local collector:
 `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318/otlp` overrides the code's

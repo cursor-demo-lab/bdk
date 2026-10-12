@@ -121,7 +121,7 @@ async function retry(input: { status: string; kv?: Record<string, unknown>; comm
 test("only a message that is just retry KEY, with Slack chrome allowed, is the command", () => {
   assert.equal(retryTarget("retry TLSSN-42"), KEY);
   assert.equal(retryTarget("<@U0FACTORY> Retry tlssn-42."), KEY);
-  assert.equal(retryTarget("retry <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42|TLSSN-42>\n*Sent using* <@U0EXAMPLE1|Cursor>"), KEY);
+  assert.equal(retryTarget("retry <https://example.atlassian.net/browse/TLSSN-42|TLSSN-42>\n*Sent using* <@U0EXAMPLE1|Cursor>"), KEY);
   for (const text of ["retry TLSSN-42 please", "can you retry TLSSN-42", "retry", "retry file"]) assert.equal(retryTarget(text), undefined, text);
 });
 

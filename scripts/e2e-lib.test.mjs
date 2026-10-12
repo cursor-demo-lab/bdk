@@ -103,8 +103,8 @@ function issue({ status = "To Do", comments = [], transitions = [] } = {}) {
     status,
     summary: "CSV export returns 500",
     description: "",
-    url: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42",
-    comments: comments.map((c, i) => ({ id: String(100 + i), author: "the operator", authorId: AGENT, url: `https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=${100 + i}`, ...c })),
+    url: "https://example.atlassian.net/browse/TLSSN-42",
+    comments: comments.map((c, i) => ({ id: String(100 + i), author: "the operator", authorId: AGENT, url: `https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=${100 + i}`, ...c })),
     transitions,
   };
 }
@@ -248,7 +248,7 @@ test("issueFacts sorts comments and status transitions and builds links", () => 
     },
   });
   assert.deepEqual(facts.comments.map((c) => c.text), ["Triage: bug", "Plan: TLSSN-42 x"]);
-  assert.equal(facts.comments[0].url, "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42?focusedCommentId=1");
+  assert.equal(facts.comments[0].url, "https://example.atlassian.net/browse/TLSSN-42?focusedCommentId=1");
   assert.deepEqual(facts.transitions.map((t) => [t.id, t.from, t.to]), [["500", "To Do", "Triaged"], ["501", "Triaged", "Planned"]]);
   assert.equal(facts.description, "desc");
   assert.equal(facts.status, "Planned");
@@ -728,7 +728,7 @@ test("createdBody is the issue_created shape triage parses", () => {
   assert.equal(body.issue.fields.summary, "CSV export");
   assert.equal(body.issue.fields.description, "500 on empty filter");
   assert.equal(body.issue.fields.project.key, "TLSSN");
-  assert.equal(body.issue.self, "https://<JIRA_SITE>.atlassian.net/rest/api/2/issue/10042");
+  assert.equal(body.issue.self, "https://example.atlassian.net/rest/api/2/issue/10042");
 });
 
 test("signing is sha256 HMAC hex over the raw body, and the replay script re-exports the builder", () => {
@@ -1174,8 +1174,8 @@ test("R5 an Implementing: URL is read from a smart link, a sibling block or embe
 const PLAN_LINKED = {
   type: "doc",
   content: [
-    { type: "paragraph", content: [{ type: "text", text: "Plan: " }, { type: "text", text: "TLSSN-10", marks: [{ type: "link", attrs: { href: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-10" } }] }, { type: "text", text: " Retry CSV export" }] },
-    { type: "paragraph", content: [{ type: "text", text: "Brief:", marks: [{ type: "link", attrs: { href: "https://<JIRA_SITE>.atlassian.net/wiki/brief" } }] }] },
+    { type: "paragraph", content: [{ type: "text", text: "Plan: " }, { type: "text", text: "TLSSN-10", marks: [{ type: "link", attrs: { href: "https://example.atlassian.net/browse/TLSSN-10" } }] }, { type: "text", text: " Retry CSV export" }] },
+    { type: "paragraph", content: [{ type: "text", text: "Brief:", marks: [{ type: "link", attrs: { href: "https://example.atlassian.net/wiki/brief" } }] }] },
     { type: "paragraph", content: [{ type: "text", text: "Do it." }] },
   ],
 };
@@ -1412,7 +1412,7 @@ test("V8 only a fail makes the exit code non-zero; the printed report is the run
   const failed = summarizeResults([result("a", "pass", ""), result("b", "fail", "")]);
   assert.equal(failed.exitCode, 1);
   assert.deepEqual(failed.counts, { pass: 1, "pass (prior run)": 0, fail: 1, blocked: 0, unverified: 0, skipped: 0 });
-  const table = renderTable([result("ticket", "pass", "TLSSN-42 created", { links: ["https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42"] })]);
+  const table = renderTable([result("ticket", "pass", "TLSSN-42 created", { links: ["https://example.atlassian.net/browse/TLSSN-42"] })]);
   assert.match(table, /^step\s+status\s+detail$/m);
   assert.match(table, /ticket\s+pass\s+TLSSN-42 created/);
   assert.match(table, /browse\/TLSSN-42$/m);

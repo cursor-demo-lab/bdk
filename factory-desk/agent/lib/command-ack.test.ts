@@ -178,7 +178,7 @@ function toolContext(input: { text: string; speaker?: string; status?: string; s
         listTools: async () => TOOLS,
         callTool: async (_connection: string, tool: string): Promise<HostMcpCallResult> => {
           jira.push(tool);
-          if (tool === "createJiraIssue") return json({ key: "TLSSN-28", self: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-28" });
+          if (tool === "createJiraIssue") return json({ key: "TLSSN-28", self: "https://example.atlassian.net/browse/TLSSN-28" });
           if (tool === "getJiraIssue") return json({ key: "TLSSN-28", fields: { status: { name: status } } });
           if (tool === "getTransitionsForJiraIssue") return json({ transitions: [{ id: "31", name: "Approve", to: { name: "Approved" } }] });
           if (tool === "transitionJiraIssue") status = "Approved";

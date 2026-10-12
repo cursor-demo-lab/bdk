@@ -4,7 +4,7 @@ import type { HostMcpCallResult, HostMcpRegistry, HostMcpToolInfo } from "@curso
 import { jiraCommentBodies, withCloudId } from "./atlassian.js";
 import { addComment, readComments, transitionFrom, transitionIssue } from "./jira.js";
 
-const SITE = "https://<JIRA_SITE>.atlassian.net";
+const SITE = "https://example.atlassian.net";
 let savedCloudId: string | undefined;
 
 before(() => {

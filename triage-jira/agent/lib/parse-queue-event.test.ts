@@ -15,7 +15,7 @@ test("the documented Automation issue_created body queues the ticket", () => {
       webhookEvent: "jira:issue_created",
       issue: {
         key: "TLSSN-42",
-        self: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42",
+        self: "https://example.atlassian.net/browse/TLSSN-42",
         fields: {
           summary: "CSV export returns 500",
           description: "Empty filter 500s.",
@@ -31,7 +31,7 @@ test("the documented Automation issue_created body queues the ticket", () => {
         identifier: "TLSSN-42",
         title: "CSV export returns 500",
         description: "Empty filter 500s.",
-        url: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42",
+        url: "https://example.atlassian.net/browse/TLSSN-42",
         reporter: "Alice Example",
         status: "To Do",
       },

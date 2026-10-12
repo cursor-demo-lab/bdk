@@ -11,10 +11,10 @@ import. Fill these in (or set the matching env vars) before you deploy:
 | `<SLACK_APP_ID>` / `A0EXAMPLE1` | Production Slack app id. Staging slugs refuse this app |
 | `<SLACK_TEAM_ID>` / `T0EXAMPLE1` | Slack workspace / team id |
 | `<SLACK_WORKSPACE>` / `example-workspace` | Slack workspace hostname (without `.slack.com`). Fixtures use `example-workspace.slack.com` so permalink parsers still match |
-| `<JIRA_SITE>` | Jira Cloud site hostname, used as `JIRA_CLOUD_ID=https://<JIRA_SITE>.atlassian.net` |
+| `<JIRA_SITE>` / `example` | Jira Cloud site hostname. Code default and fixtures use `https://example.atlassian.net` (`JIRA_CLOUD_ID`) |
 | `<GRAFANA_STACK>` | Grafana Cloud stack slug |
 | `<GRAFANA_STACK_URL>` | `https://<GRAFANA_STACK>.grafana.net` (`GRAFANA_URL`) |
-| `<GRAFANA_OTLP_HOST>` | Grafana Cloud OTLP gateway host (`OTEL_EXPORTER_OTLP_ENDPOINT`) |
+| `<GRAFANA_OTLP_HOST>` / `otlp.example.com` | Grafana Cloud OTLP gateway host (`OTEL_EXPORTER_OTLP_ENDPOINT`). Also listed in each agent's `egressDomains` |
 | `<GRAFANA_REGION>` | Grafana Cloud region of that stack |
 | `<CURSOR_TEAM_ID>` / `<CURSOR_TEAM_NAME>` | Cursor team id and display name (`--team`) |
 | `<MCP_SERVER_ID>` | Team MCP server id for Factory Atlassian |
@@ -350,7 +350,7 @@ Every slug declares `FACTORY_ENV`, `FACTORY_STAGING_ALLOW_PRODUCTION`,
   `FACTORY_SANDBOX_REPO` / `FACTORY_SANDBOX_REF`: where the worker launches
   and which base its PR targets (`main`).
 - `FACTORY_JIRA_PROJECTS`: `TLSSN`. `JIRA_CLOUD_ID` defaults to
-  `https://<JIRA_SITE>.atlassian.net`.
+  `https://example.atlassian.net`.
 - `FACTORY_STATUS_TODO`, `_TRIAGED`, `_PLANNED`, `_APPROVED`,
   `_IN_PROGRESS`, `_IN_REVIEW`, `_DONE`: Jira status names; defaults are
   the names in the flow above.
@@ -395,7 +395,7 @@ Each host's `<slug>/agent/otel.ts`,
 and `<slug>/agent/lib/factory-otel-rebase.ts`
 (identical copies) export traces,
 metrics, and logs to Grafana Cloud (the `<GRAFANA_STACK>` stack, its
-gateway `https://<GRAFANA_OTLP_HOST>/otlp`, in
+gateway `https://otlp.example.com/otlp`, in
 code) once a slug has the one secret, `OTEL_EXPORTER_OTLP_HEADERS`
 (`Authorization=Basic base64(<instance id>:<glc_ token>)`, a literal space
 after `Basic`). Unset, nothing is exported; unsetting it is the kill

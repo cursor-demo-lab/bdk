@@ -10,7 +10,7 @@ import { briefLinks, withTicketLinks } from "../factory-worker/agent/lib/pr-link
 // reads them back to put Jira: and Slack: at the top of the implement PR's
 // description. Separate projects, so this is where the writer meets the reader.
 
-const JIRA = "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-28";
+const JIRA = "https://example.atlassian.net/browse/TLSSN-28";
 const SLACK = "https://example-workspace.slack.com/archives/C0EXAMPLE1/p1790370261284789?thread_ts=1790370261.284789&cid=C0EXAMPLE1";
 
 const plan = planSchema.parse({

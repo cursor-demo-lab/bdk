@@ -191,7 +191,7 @@ test("createIssue builds a browse URL when the connector only returns a REST sel
     status: "created",
     issueKey: "TLSSN-42",
     project: "TLSSN",
-    url: "https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42",
+    url: "https://example.atlassian.net/browse/TLSSN-42",
   });
 
   const fromSelf = await createIssue(
@@ -235,10 +235,10 @@ test("file_ticket creates the issue and binds the Slack thread from session auth
     reason: "created",
     issueKey: "EVALX-1",
     project: "EVALX",
-    url: "https://<JIRA_SITE>.atlassian.net/browse/EVALX-1",
-    link: "[EVALX-1](https://<JIRA_SITE>.atlassian.net/browse/EVALX-1)",
+    url: "https://example.atlassian.net/browse/EVALX-1",
+    link: "[EVALX-1](https://example.atlassian.net/browse/EVALX-1)",
     reply: [
-      "[EVALX-1](https://<JIRA_SITE>.atlassian.net/browse/EVALX-1) is filed. Triaged by Grok 4.6 Fast (Jev wasn't asked): Bug, medium severity.",
+      "[EVALX-1](https://example.atlassian.net/browse/EVALX-1) is filed. Triaged by Grok 4.6 Fast (Jev wasn't asked): Bug, medium severity.",
     ].join("\n"),
     threadBound: false,
     triage: { by: "model", issueType: "Bug", kind: "bug", severity: "medium", summary: "Export fails.", fallback: "no_intake", status: "eval" },
@@ -346,7 +346,7 @@ test("announcePlan posts into the bound thread once per transition, or the intak
     bound.posts[0]?.["text"],
     [
       "<@U0ALICE01> TLSSN-42 is planned: Retry CSV export.",
-      "The plan is on the ticket: https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42",
+      "The plan is on the ticket: https://example.atlassian.net/browse/TLSSN-42",
       "React ✅ to start the build or ❌ to stop.",
     ].join("\n")
   );
@@ -640,7 +640,7 @@ test("announceProgress uses the intake channel and reports a missing connector",
     const result = (await announceProgress({ issueKey: "TLSSN-42", changelogId: "10043" } as never, unbound.context as never)) as Record<string, unknown>;
     assert.equal(result["reason"], "opened_intake_thread");
     assert.deepEqual(unbound.posts.map((post) => [post["channel"], post["thread_ts"], post["text"]]), [
-      ["C0INTAKE01", undefined, "TLSSN-42: TLSSN-42\nStatus: *In Progress*  \u00b7  <https://<JIRA_SITE>.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>\nFiled in Jira, not from Slack. Approve, replan, or retry it on the Jira board."],
+      ["C0INTAKE01", undefined, "TLSSN-42: TLSSN-42\nStatus: *In Progress*  \u00b7  <https://example.atlassian.net/browse/TLSSN-42|TLSSN-42 on Jira>\nFiled in Jira, not from Slack. Approve, replan, or retry it on the Jira board."],
       ["C0INTAKE01", "1758510001.000100", `TLSSN-42 is In Progress. The factory opens the PR up to about 10 minutes after the agent pushes. Agent: https://cursor.com/agents/bc-1234`],
     ]);
     assert.deepEqual(unbound.kv["ticket/TLSSN-42"], {

@@ -67,7 +67,7 @@ export function createdBody({ issueKey, summary, description, timestamp, issueId
     issue: {
       id,
       key: issueKey,
-      self: `https://${site ?? "<JIRA_SITE>.atlassian.net"}/rest/api/2/issue/${id}`,
+      self: `https://${site ?? "example.atlassian.net"}/rest/api/2/issue/${id}`,
       fields: {
         summary,
         description,

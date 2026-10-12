@@ -51,6 +51,6 @@ export default defineAgent({
     // GitHub channel only reads a PR's checks and reviews (channels/github.ts).
     // OTLP export (agent/otel.ts) goes to the Grafana Cloud stack's gateway in <GRAFANA_REGION>;
     // the endpoint is in lib/factory-otel.ts and only OTEL_EXPORTER_OTLP_HEADERS is a secret.
-    egressDomains: ["slack.com", "*.slack.com", "api.github.com", "<GRAFANA_OTLP_HOST>"],
+    egressDomains: ["slack.com", "*.slack.com", "api.github.com", "otlp.example.com"],
   },
 });

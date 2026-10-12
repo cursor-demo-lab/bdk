@@ -32,7 +32,7 @@ slug (`label_replace(vector(0), …) or` the live series), so an idle slug
 shows 0 rather than vanishing; only factory-desk, factory-planner and
 factory-security-reviewer run model turns, so the other slugs show 0 on
 turn panels. Ticket keys open Jira
-(`https://<JIRA_SITE>.atlassian.net/browse/<KEY>`) or the ticket on
+(`https://example.atlassian.net/browse/<KEY>`) or the ticket on
 Factory ops (`var-ticket`), PR values open the pull request on GitHub,
 trace ids and span ids open the trace, and a service cell opens Factory
 ops filtered to that slug.

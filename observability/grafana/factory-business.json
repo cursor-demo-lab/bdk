@@ -1310,7 +1310,7 @@
                   {
                     "targetBlank": true,
                     "title": "Open ${__value.raw} in Jira",
-                    "url": "https://<JIRA_SITE>.atlassian.net/browse/${__value.raw}"
+                    "url": "https://example.atlassian.net/browse/${__value.raw}"
                   },
                   {
                     "targetBlank": false,

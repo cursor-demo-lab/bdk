@@ -66,7 +66,7 @@ const MODEL_DEFAULTS = {
 const LIGHT_AGENTS = Object.keys(MODEL_DEFAULTS);
 const modelBlock = (project) => `${MODEL_DEFAULTS[project] ?? AUTO_DEFAULT}${MODEL_OVERRIDES}`;
 const CLOUD_ID_BLOCK = `# Site the Atlassian MCP tools take as cloudId (the site URL or its cloud id).
-# Unset: https://<JIRA_SITE>.atlassian.net.
+# Unset: https://example.atlassian.net.
 JIRA_CLOUD_ID=
 `;
 const jiraSecretBlock = (route) => `# HMAC secret of this slug's Jira webhook on /v1/channels/${route}. Each slug has

@@ -11,7 +11,7 @@ export const JIRA_HOPS = ["triage", "plan", "announce", "approve", "progress"];
 export const GITHUB_STEPS = ["prs", "review", "red-check", "drive"];
 
 export const DEFAULTS = {
-  site: "<JIRA_SITE>.atlassian.net",
+  site: "example.atlassian.net",
   email: "<OPERATOR_EMAIL>",
   project: "TLSSN",
   label: "factory-e2e",

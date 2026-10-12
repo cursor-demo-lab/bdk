@@ -40,8 +40,8 @@ test("transitionIssue picks the transition into the status and names arguments f
   const outcome = await transitionIssue(registry({ calls }), { issueKey: "TLSSN-42", toStatus: "triaged" });
   assert.deepEqual(outcome, { status: "transitioned" });
   assert.deepEqual(calls, [
-    { tool: "getTransitionsForJiraIssue", args: { issueIdOrKey: "TLSSN-42", cloudId: "https://<JIRA_SITE>.atlassian.net" } },
-    { tool: "transitionJiraIssue", args: { issueIdOrKey: "TLSSN-42", transition: { id: "11" }, cloudId: "https://<JIRA_SITE>.atlassian.net" } },
+    { tool: "getTransitionsForJiraIssue", args: { issueIdOrKey: "TLSSN-42", cloudId: "https://example.atlassian.net" } },
+    { tool: "transitionJiraIssue", args: { issueIdOrKey: "TLSSN-42", transition: { id: "11" }, cloudId: "https://example.atlassian.net" } },
   ]);
 });
 

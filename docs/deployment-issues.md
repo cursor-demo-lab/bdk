@@ -312,7 +312,7 @@ connected Atlassian. Traced from source (`@cursor/july` 0.2.2, everysphere
    flattening ADF. Every Atlassian tool requires `cloudId`, and the site
    URL is accepted, so each call adds `cloudId` exactly when the tool's
    schema declares it (`cloudId` or `cloud_id`), from `JIRA_CLOUD_ID`,
-   default `https://<JIRA_SITE>.atlassian.net`. Triage's search
+   default `https://example.atlassian.net`. Triage's search
    sends JQL (`key = TLSSN-42`, `project = TLSSN AND summary ~ "..."`).
    Not observed live: the exact v2 input schemas, and whether the Cursor
    backend lists the default or the `?tools=all` set.

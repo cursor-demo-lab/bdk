@@ -44,6 +44,6 @@ export default defineAgent({
     // Only the optional ops failure funnel (lib/ops-funnel.ts) posts to Slack from here.
     // OTLP export (agent/otel.ts) goes to the Grafana Cloud stack's gateway in <GRAFANA_REGION>;
     // the endpoint is in lib/factory-otel.ts and only OTEL_EXPORTER_OTLP_HEADERS is a secret.
-    egressDomains: ["slack.com", "<GRAFANA_OTLP_HOST>"],
+    egressDomains: ["slack.com", "otlp.example.com"],
   },
 });

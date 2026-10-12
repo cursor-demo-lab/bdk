@@ -10,7 +10,7 @@ import type { HostMcpCallResult, HostMcpToolInfo } from "@cursor/july";
 // every project that talks to Jira.
 
 export const CLOUD_ID_ENV = "JIRA_CLOUD_ID";
-export const DEFAULT_CLOUD_ID = "https://<JIRA_SITE>.atlassian.net";
+export const DEFAULT_CLOUD_ID = "https://example.atlassian.net";
 
 export const LIST_TRANSITIONS_OPERATION = "listJiraIssueTransitions";
 export const LIST_COMMENTS_OPERATION = "listJiraIssueComments";
