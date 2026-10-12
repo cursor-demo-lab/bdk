@@ -732,3 +732,8 @@ Unchanged:
   in named `{ secretName }` form only. The factory declares none: the GitHub
   channels use `cursorAccount`, which needs no token or webhook secret.
 - Hosted evals are not adopted yet; evals run locally (Tests and evals).
+
+## License
+
+This project is released into the public domain under the
+[Unlicense](https://unlicense.org).
