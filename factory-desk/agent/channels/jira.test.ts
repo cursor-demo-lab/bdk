@@ -457,7 +457,7 @@ test("a Jira-filed ticket opens its intake root at Triaged, links it on the tick
   assert.deepEqual(world.reactions, [`add hourglass_flowing_sand ${INTAKE_CHANNEL}:${rootTs}`]);
   const permalink = "https://example-workspace.slack.com/archives/C0INTAKE01/p1758510002000001";
   assert.deepEqual(world.written, [backlinkComment(permalink)]);
-  assert.match(world.written[0]!, /^Slack thread: https:\/\/cursor-demo-lab\.slack\.com\/archives\/C0INTAKE01\/p1758510002000001\n/);
+  assert.match(world.written[0]!, /^Slack thread: https:\/\/example-workspace\.slack\.com\/archives\/C0INTAKE01\/p1758510002000001\n/);
   assert.equal((world.kv[`backlink/${JIRA_FILED_KEY}`] as Record<string, unknown>)["permalink"], permalink);
   assert.deepEqual(
     [(world.kv[`hop-watch/${JIRA_FILED_KEY}`] as Record<string, unknown>)["hop"], (world.kv[`hop-watch/${JIRA_FILED_KEY}`] as Record<string, unknown>)["changelogId"]],
