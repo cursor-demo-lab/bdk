@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
-import { beforeEach, mock, test } from "node:test";
+import { beforeEach, test } from "node:test";
 import { context, trace, TraceFlags, type Span } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {
@@ -12,29 +11,17 @@ import {
   type ReadableSpan,
 } from "@opentelemetry/sdk-trace-base";
 import {
-  capExportTimeouts,
-  currentFactoryConfig,
   describeDispatch,
   describeResponse,
-  drawnInstanceId,
-  EXPORT_TIMEOUT_MS,
   exportConfigured,
   factoryOtelConfig,
   GRAFANA_OTLP_ENDPOINT,
   noteFactory,
   otlpEndpoint,
-  parseOtelHeaders,
-  parseResourceAttributes,
-  registerFactoryTracerProvider,
-  RESTORE_SKEW_MS,
-  SIGNALS_BUDGET_MS,
   traced,
   tracedGithubHook,
   traceFactory,
-  wakeInstanceId,
-  type WakeSources,
 } from "./factory-otel.js";
-import { consoleRecord, factoryOtelResolver } from "./factory-otel-signals.js";
 import { factorySlug } from "./kv-keys.js";
 
 /** A token-shaped fixture, built from parts so no secret scanner mistakes the source for a real credential. */
@@ -44,9 +31,9 @@ function fake(...parts: string[]): string {
 
 // The shared factory OTel helpers (every agent carries a byte-identical copy,
 // scripts/copies-parity.test.mjs). Spans are checked through a real SDK
-// provider with an in-memory exporter, handed to the factory the way
-// lib/factory-otel-signals.ts hands it its own; July's provider is stood in
-// for by one with July's sampler (ParentBased) and no exporter.
+// provider with an in-memory exporter, registered as the global tracer
+// provider the way July registers its own; July's provider is stood in for by
+// one with July's sampler (ParentBased) and no exporter.
 
 const exporter = new InMemorySpanExporter();
 const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
@@ -55,11 +42,13 @@ const julyProvider = new BasicTracerProvider({ sampler: new ParentBasedSampler({
 
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 
-// The resolver test installs the factory's real provider; every test starts on the in-memory one.
-beforeEach(() => registerFactoryTracerProvider(provider));
+beforeEach(() => {
+  trace.disable();
+  trace.setGlobalTracerProvider(provider);
+});
 
 test("with no tracer provider registered every helper is a silent pass-through", async () => {
-  registerFactoryTracerProvider(undefined);
+  trace.disable();
   assert.equal(await traceFactory({ span: "factory.delivery", kind: "jira.webhook" }, () => 7), 7);
   noteFactory({ ticketKey: "TLSSN-1", outcome: "ok" });
   await assert.rejects(traceFactory({ span: "factory.reminder", kind: "reminder.x" }, () => Promise.reject(new Error("boom"))), /boom/);
@@ -76,216 +65,6 @@ function only(): ReadableSpan {
   assert.equal(finished.length, 1);
   return finished[0]!;
 }
-
-const LIFE = Symbol.for("apj_factory.otel.life");
-const HEADER = { OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic x" };
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-/** A fresh process life: no id drawn yet, as in a VM that has not served a request since its restore. */
-function newLife(): void {
-  delete (globalThis as { [LIFE]?: unknown })[LIFE];
-}
-
-/** Wake sources whose kernel pool, clocks, and counter are exactly the same on every call: a VM restored with everything cloned. */
-function clonedSources(skew: { ms: number } = { ms: 0 }): WakeSources {
-  return { kernel: (length) => Buffer.alloc(length, 7), ambient: () => "frozen", skew: () => skew.ms };
-}
-
-test("no service.instance.id is drawn, or exported, while the header is unset", () => {
-  newLife();
-  assert.equal(currentFactoryConfig({}).resourceAttributes?.["service.instance.id"], undefined);
-  assert.equal(drawnInstanceId(), undefined, "nothing a snapshot could freeze");
-});
-
-test("with the header set every call carries the same version-4 service.instance.id, drawn once", () => {
-  newLife();
-  const first = currentFactoryConfig(HEADER).resourceAttributes?.["service.instance.id"];
-  assert.match(String(first), UUID_V4);
-  assert.equal(currentFactoryConfig(HEADER).resourceAttributes?.["service.instance.id"], first);
-  assert.equal(drawnInstanceId(), first);
-});
-
-test("an OTEL_RESOURCE_ATTRIBUTES service.instance.id is honoured, and none is drawn", () => {
-  newLife();
-  const config = currentFactoryConfig({ ...HEADER, OTEL_RESOURCE_ATTRIBUTES: "service.instance.id=pod-a,team=apj" });
-  assert.equal(config.resourceAttributes?.["service.instance.id"], "pod-a");
-  assert.equal(config.resourceAttributes?.team, "apj");
-  assert.equal(drawnInstanceId(), undefined);
-});
-
-test("two lives restored from one snapshot draw different instance ids even when the kernel pool, clocks, and counter are cloned: the request's inbound span tells them apart", async () => {
-  const sources = clonedSources();
-  const draw = (input: { traceId: string; spanId: string }) => {
-    newLife();
-    const inbound = trace.setSpanContext(context.active(), { ...input, traceFlags: TraceFlags.NONE, isRemote: true });
-    return context.with(inbound, () => wakeInstanceId({ sources }));
-  };
-  const a = draw({ traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b7169203331" });
-  const b = draw({ traceId: "4bf92f3577b34da6a3ce929d0e0e4736", spanId: "00f067aa0ba902b7" });
-  assert.match(a, UUID_V4);
-  assert.notEqual(a, b);
-  newLife();
-  assert.equal(wakeInstanceId({ sources }), wakeInstanceId({ sources }), "within one life the id does not change");
-});
-
-/** The `{"otel":"instance_id"}` lines written while `run` executes. */
-function instanceIdLog<R>(run: () => R): { result: R; reasons: string[] } {
-  const info = mock.method(console, "info", () => undefined);
-  try {
-    const result = run();
-    const reasons = info.mock.calls.flatMap((call) => {
-      const line = JSON.parse(String(call.arguments[0])) as { otel?: string; reason?: string };
-      return line.otel === "instance_id" && line.reason !== undefined ? [line.reason] : [];
-    });
-    return { result, reasons };
-  } finally {
-    info.mock.restore();
-  }
-}
-
-/** Runs `run` as one request: Cursor's backend gave it these inbound span ids. */
-function inRequest<R>(input: { spanId: string; run: () => R }): R {
-  const inbound = trace.setSpanContext(context.active(), { traceId: "0af7651916cd43dd8448eb211c80319c", spanId: input.spanId, traceFlags: TraceFlags.NONE, isRemote: true });
-  return context.with(inbound, input.run);
-}
-
-function randomSources(skew: { ms: number }): WakeSources {
-  return { kernel: (length) => randomBytes(length), ambient: () => String(Math.random()), skew: () => skew.ms };
-}
-
-test("a step in wall minus monotonic clock beyond RESTORE_SKEW_MS seen in a request (a paused VM resumed with its clock set) draws a new instance id; drift below it does not", () => {
-  newLife();
-  const skew = { ms: 1_000 };
-  const sources = randomSources(skew);
-  const first = inRequest({ spanId: "b7ad6b7169203331", run: () => wakeInstanceId({ sources }) });
-  for (const step of [100, 900, 2_000, 4_000]) {
-    skew.ms += step;
-    assert.equal(inRequest({ spanId: "b7ad6b7169203332", run: () => wakeInstanceId({ sources }) }), first, `a ${step} ms drift is the same life`);
-  }
-  skew.ms += RESTORE_SKEW_MS + 1;
-  const second = inRequest({ spanId: "b7ad6b7169203333", run: () => wakeInstanceId({ sources }) });
-  assert.notEqual(second, first, "a step over the threshold is a new life");
-  assert.equal(inRequest({ spanId: "b7ad6b7169203334", run: () => wakeInstanceId({ sources }) }), second);
-  skew.ms -= RESTORE_SKEW_MS + 1;
-  assert.notEqual(inRequest({ spanId: "b7ad6b7169203335", run: () => wakeInstanceId({ sources }) }), second, "a step back is a new life too");
-});
-
-test("a clock step seen outside a request (a timer's export) keeps the id and marks it stale; the next call that has a salt draws the new one, once", () => {
-  newLife();
-  const skew = { ms: 1_000 };
-  const sources = randomSources(skew);
-  const { result: first } = instanceIdLog(() => inRequest({ spanId: "b7ad6b7169203331", run: () => wakeInstanceId({ sources }) }));
-  skew.ms += RESTORE_SKEW_MS + 1;
-  const timer = instanceIdLog(() => [wakeInstanceId({ sources }), wakeInstanceId({ sources }), wakeInstanceId({ sources })]);
-  assert.deepEqual(timer.result, [first, first, first], "no salt: no new draw, so no clone draws alike from a cloned state");
-  assert.deepEqual(timer.reasons, ["skew_pending"], "one line for the step, not one per call");
-  const request = instanceIdLog(() => inRequest({ spanId: "00f067aa0ba902b7", run: () => wakeInstanceId({ sources }) }));
-  assert.notEqual(request.result, first, "the first salted call after the step draws");
-  assert.deepEqual(request.reasons, ["salted_after_unsalted"]);
-  const later = instanceIdLog(() => [wakeInstanceId({ sources }), inRequest({ spanId: "00f067aa0ba902b8", run: () => wakeInstanceId({ sources }) })]);
-  assert.deepEqual(later.result, [request.result, request.result], "and then it holds");
-  assert.deepEqual(later.reasons, []);
-});
-
-test("two VMs resumed from one frozen life with cloned kernel pool, clocks, and counter: timer exports keep the shared id, and each draws its own at its first request", () => {
-  const skew = { ms: 1_000 };
-  const sources = clonedSources(skew);
-  newLife();
-  const frozenId = instanceIdLog(() => inRequest({ spanId: "b7ad6b7169203331", run: () => wakeInstanceId({ sources }) })).result;
-  const frozen = { ...(globalThis as { [LIFE]?: object })[LIFE] };
-  const resume = (spanId: string) => {
-    (globalThis as { [LIFE]?: object })[LIFE] = { ...frozen };
-    skew.ms = 1_000 + RESTORE_SKEW_MS + 1;
-    assert.equal(instanceIdLog(() => wakeInstanceId({ sources })).result, frozenId, "a timer's export still carries the id the snapshot held");
-    return instanceIdLog(() => inRequest({ spanId, run: () => wakeInstanceId({ sources }) })).result;
-  };
-  const a = resume("b7ad6b7169203340");
-  const b = resume("00f067aa0ba90240");
-  assert.match(a, UUID_V4);
-  assert.notEqual(a, frozenId);
-  assert.notEqual(a, b);
-});
-
-test("a first draw with no salt (a timer's export first after a restore) is replaced by the next call that has one", () => {
-  newLife();
-  const sources = randomSources({ ms: 0 });
-  const first = instanceIdLog(() => [wakeInstanceId({ sources }), wakeInstanceId({ sources })]);
-  assert.equal(first.result[0], first.result[1]);
-  assert.deepEqual(first.reasons, ["first_unsalted"]);
-  const request = instanceIdLog(() => inRequest({ spanId: "b7ad6b7169203331", run: () => wakeInstanceId({ sources }) }));
-  assert.notEqual(request.result, first.result[0]);
-  assert.deepEqual(request.reasons, ["salted_after_unsalted"]);
-  assert.equal(wakeInstanceId({ sources }), request.result);
-});
-
-test("a first draw in a request is final, and every draw writes one `otel` log line", () => {
-  newLife();
-  const sources = randomSources({ ms: 0 });
-  const drawn = instanceIdLog(() => [inRequest({ spanId: "b7ad6b7169203331", run: () => wakeInstanceId({ sources }) }), wakeInstanceId({ sources })]);
-  assert.equal(drawn.result[0], drawn.result[1]);
-  assert.deepEqual(drawn.reasons, ["first"]);
-  const line = JSON.stringify({ otel: "instance_id", reason: "first" });
-  const record = consoleRecord(line);
-  assert.deepEqual(record, { body: line, attributes: {} }, "the JSON stays in the body; nothing is parsed out");
-});
-
-test("factoryOtelConfig names the slug's service and stage, and env overrides win", () => {
-  assert.deepEqual(factoryOtelConfig({ env: {}, slug: "factory-worker" }), {
-    serviceName: "factory-worker",
-    resourceAttributes: {
-      "service.namespace": "software-factory",
-      "deployment.environment": "production",
-      "deployment.environment.name": "production",
-      "factory.slug": "factory-worker",
-    },
-  });
-  const staging = factoryOtelConfig({ env: { FACTORY_ENV: "staging" }, slug: "factory-worker" });
-  assert.equal(staging.serviceName, "factory-worker-staging");
-  assert.equal(staging.resourceAttributes?.["deployment.environment"], "staging");
-  const overridden = factoryOtelConfig({ env: { OTEL_SERVICE_NAME: "custom", OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=prod-au,team=apj%20fe" }, slug: "factory-desk" });
-  assert.equal(overridden.serviceName, "custom");
-  assert.equal(overridden.resourceAttributes?.["deployment.environment"], "prod-au");
-  assert.equal(overridden.resourceAttributes?.["team"], "apj fe");
-  assert.equal(factoryOtelConfig({ env: {} }).serviceName, "software-factory");
-  assert.equal(factoryOtelConfig({ env: {} }).resourceAttributes?.["factory.slug"], undefined);
-});
-
-test("the config carries no exporter, endpoint, or header: those stay in OTEL_* env", () => {
-  const env = { OTEL_EXPORTER_OTLP_ENDPOINT: "https://otlp.example.com/otlp", OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic c2VjcmV0" };
-  const text = JSON.stringify(factoryOtelConfig({ env, slug: "factory-desk" }));
-  assert.equal(text.includes("grafana"), false);
-  assert.equal(text.includes("c2VjcmV0"), false);
-  assert.equal("exporters" in factoryOtelConfig({ env, slug: "factory-desk" }), false);
-});
-
-test("the resolver's first call (defineOtel's snapshot) is slug-free; later calls name this slug while it is the only mount", () => {
-  const resolve = factoryOtelResolver();
-  const first = resolve();
-  assert.equal(first.serviceName, "software-factory");
-  assert.deepEqual(first.logs, { userPrompts: true, toolContent: true }, "July exports prompts and tool content");
-  assert.equal(resolve().serviceName, factorySlug);
-  assert.deepEqual(resolve().logs, { userPrompts: true, toolContent: true });
-  const holder = globalThis as { [key: symbol]: Set<string> | undefined };
-  holder[Symbol.for("apj_factory.otel.mounts")]?.add("factory-planner");
-  assert.equal(resolve().serviceName, "software-factory");
-  holder[Symbol.for("apj_factory.otel.mounts")]?.delete("factory-planner");
-});
-
-test("the resolver installs the factory's tracer provider: nothing is recorded while the header is unset", async () => {
-  delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
-  factoryOtelResolver();
-  let recorded: boolean | undefined;
-  await traceFactory({ span: "factory.delivery", kind: "jira.webhook" }, () => {
-    recorded = trace.getActiveSpan()?.isRecording();
-  });
-  assert.equal(recorded, false);
-  assert.equal(spans().length, 0, "the in-memory provider was not used");
-});
-
-test("parseResourceAttributes skips malformed pairs", () => {
-  assert.deepEqual(parseResourceAttributes("a=1,,=x,b, c = 2 ,d=%E0%A4%A"), { a: "1", c: "2", d: "%E0%A4%A" });
-  assert.deepEqual(parseResourceAttributes(undefined), {});
-});
 
 test("traceFactory records kind, ticket, and the note taken inside, over describe", async () => {
   const result = await traceFactory(
@@ -378,23 +157,6 @@ test("token-shaped values, Slack ids, emails, URLs, and long runs pass through o
   }
 });
 
-test("an export may take twice a cold TLS handshake (about 0.9 s to the AU gateway), and a delivery waits a little longer than one export", () => {
-  assert.ok(EXPORT_TIMEOUT_MS >= 1_800, `${EXPORT_TIMEOUT_MS} ms is under two cold handshakes`);
-  assert.ok(SIGNALS_BUDGET_MS > EXPORT_TIMEOUT_MS, "a timed-out export reports back before the wait gives up");
-  assert.ok(SIGNALS_BUDGET_MS <= EXPORT_TIMEOUT_MS + 500, "and the wait stays bounded");
-});
-
-test("capExportTimeouts caps each signal's export timeout at EXPORT_TIMEOUT_MS and keeps a smaller one", () => {
-  const env: NodeJS.ProcessEnv = { OTEL_EXPORTER_OTLP_LOGS_TIMEOUT: "800", OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: "30000" };
-  capExportTimeouts(env);
-  assert.equal(env.OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, String(EXPORT_TIMEOUT_MS));
-  assert.equal(env.OTEL_EXPORTER_OTLP_METRICS_TIMEOUT, String(EXPORT_TIMEOUT_MS));
-  assert.equal(env.OTEL_EXPORTER_OTLP_LOGS_TIMEOUT, "800");
-  const shared: NodeJS.ProcessEnv = { OTEL_EXPORTER_OTLP_TIMEOUT: "900" };
-  capExportTimeouts(shared);
-  assert.equal(shared.OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, undefined);
-});
-
 test("the header is the only switch, and the endpoint defaults to the Grafana gateway", () => {
   assert.equal(exportConfigured({}), false);
   assert.equal(exportConfigured({ OTEL_EXPORTER_OTLP_ENDPOINT: "https://x/otlp" }), false, "an endpoint alone sends nothing");
@@ -404,11 +166,6 @@ test("the header is the only switch, and the endpoint defaults to the Grafana ga
   assert.equal(GRAFANA_OTLP_ENDPOINT, "https://otlp.example.com/otlp");
   assert.equal(otlpEndpoint({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/otlp/v1/traces" }), "http://127.0.0.1:4318/otlp");
   assert.equal(otlpEndpoint({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/otlp/" }), "http://127.0.0.1:4318/otlp");
-});
-
-test("parseOtelHeaders splits at the first = and decodes nothing, as July does", () => {
-  assert.deepEqual(parseOtelHeaders("Authorization=Basic MTIzOmdsY19h==,x-scope=a"), { Authorization: "Basic MTIzOmdsY19h==", "x-scope": "a" });
-  assert.deepEqual(parseOtelHeaders("Authorization=Basic%20MTIz"), { Authorization: "Basic%20MTIz" }, "Grafana's Python snippet stays encoded, and Grafana answers 401");
 });
 
 test("traced passes arguments and the Response through, and describeResponse reads only whitelisted fields", async () => {
@@ -471,7 +228,7 @@ const INBOUND = { traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b71
 
 /**
  * `work` inside a July-shaped `agent_sdk.http` span whose parent is an
- * inbound request the caller did not sample (Cursor's backend, 96% of the
+ * inbound request the caller did not sample (Cursor's backend, most of the
  * time) or did. July's own span is then not recording, as in production.
  */
 async function insideHttpSpan<R>(input: { sampled: boolean; work: (http: Span) => Promise<R> }): Promise<R> {
@@ -591,56 +348,42 @@ test("tracedGithubHook: the delivery is a linked root and the task, run later in
   assert.equal(task.parentSpanContext?.spanId, delivery.spanContext().spanId);
 });
 
-test("consoleRecord: original body only; no JSON or key=value parse; util.format of every argument, no trim", () => {
-  const worker = JSON.stringify({ worker: "decision", outcome: "ignored", reason: "not_approved", text: "hello there", issueKey: "TLSSN-4" });
-  assert.deepEqual(consoleRecord(worker), { body: worker, attributes: {} });
-  const tagged = "[bdk] hosted admission received deliveryId=dlv_1 channelId=jira eventType=jira:issue_updated";
-  assert.deepEqual(consoleRecord(tagged), { body: tagged, attributes: {} }, "deliveryId and eventType stay in the body");
-  const planner = "[planner] webhook status TLSSN-1 planned (changelog 7)";
-  assert.deepEqual(consoleRecord(planner), { body: planner, attributes: {} });
-  const desk = "[factory-desk] please approve this now";
-  assert.deepEqual(consoleRecord(desk), { body: desk, attributes: {} });
-  const otel = "[bdk:otel] error: export failed";
-  assert.deepEqual(consoleRecord(otel), { body: otel, attributes: {} });
-  assert.deepEqual(consoleRecord("[slack-text] hello"), { body: "[slack-text] hello", attributes: {} });
-  assert.deepEqual(consoleRecord("free text with no tag"), { body: "free text with no tag", attributes: {} });
-  assert.deepEqual(consoleRecord("{not json"), { body: "{not json", attributes: {} });
-  assert.equal(consoleRecord("  padded  ").body, "  padded  ");
-  const err = new Error("ERROR_ARG_MARK");
-  const record = consoleRecord("[factory-desk] hop-watch failed:", err);
-  assert.ok(record.body.includes("[factory-desk] hop-watch failed:"));
-  assert.ok(record.body.includes("ERROR_ARG_MARK"), "a later Error reaches the body");
-  assert.deepEqual(record.attributes, {});
+test("factoryOtelConfig: no exporter while the header is unset, one for traces and logs only while it is set", () => {
+  assert.deepEqual(factoryOtelConfig({}).exporters, []);
+  assert.deepEqual(factoryOtelConfig({ OTEL_EXPORTER_OTLP_ENDPOINT: "https://x/otlp" }).exporters, [], "an endpoint alone gives the config no exporter");
+  const set = factoryOtelConfig({ OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic x" });
+  assert.deepEqual(set.exporters, [{ url: GRAFANA_OTLP_ENDPOINT, signals: ["traces", "logs"] }], "no metrics: July's DELTA exporter is rejected by Grafana, so metrics go through factory-metrics.ts");
+  assert.equal(JSON.stringify(set).includes("Basic"), false, "July reads the header from the env; the config never holds it");
+  assert.deepEqual(set.logs, { userPrompts: true, toolContent: true }, "logs are on, with prompts and tool content");
 });
 
-test("consoleRecord: planner turn_model fields reach Grafana in the original body, not as extracted attributes", () => {
-  const line = JSON.stringify({
-    planner: "turn_model",
-    outcome: "completed",
-    sessionId: "ses_plan",
-    issueKey: "TLSSN-22",
-    model: "claude-4.6-sonnet",
-    costUsd: 0.5,
-    pricedFrom: "usage",
-    inputTokens: 10,
-    outputTokens: 2,
-    cacheReadTokens: 0,
+test("factoryOtelConfig: the service is the slug on managed hosting and one shared name off it; OTEL_SERVICE_NAME wins; the resource is set here", () => {
+  const hosted = factoryOtelConfig({ AGENT_SERVE_GENERATION: "7" });
+  assert.equal(hosted.serviceName, factorySlug);
+  assert.deepEqual(hosted.resourceAttributes, {
+    "service.namespace": "software-factory",
+    "deployment.environment": "production",
+    "deployment.environment.name": "production",
+    "factory.slug": factorySlug,
   });
-  const record = consoleRecord(line);
-  assert.equal(record.body, line);
-  assert.deepEqual(record.attributes, {});
-  assert.match(record.body, /"model":"claude-4.6-sonnet"/);
-  assert.match(record.body, /"costUsd":0.5/);
-  assert.match(record.body, /"pricedFrom":"usage"/);
-  assert.match(record.body, /"inputTokens":10/);
+  const local = factoryOtelConfig({});
+  assert.equal(local.serviceName, "software-factory", "one config for every agent a local `serve --dir .` mounts");
+  assert.deepEqual(local.resourceAttributes, {
+    "service.namespace": "software-factory",
+    "deployment.environment": "production",
+    "deployment.environment.name": "production",
+  });
+  assert.equal(factoryOtelConfig({ AGENT_SERVE_GENERATION: "7", OTEL_SERVICE_NAME: "custom" }).serviceName, "custom");
 });
 
-test("consoleRecord: fields that used to be scrubbed stay in the original body", () => {
-  const token = fake("xoxb-", "1234-5678-abcdef");
-  const glsa = fake("gl", "sa_", "AbCdEfGh1234567890IjKlMnOpQrSt", "_9f8e7d6c");
-  const line = JSON.stringify({ desk: "inbound", slackText: "approve TLSSN-1 please", reactor: "U0123ABCDE9", reason: glsa, note: token });
-  const record = consoleRecord(line);
-  assert.equal(record.body, line);
-  assert.deepEqual(record.attributes, {});
-  assert.ok(record.body.includes(token) && record.body.includes(glsa) && record.body.includes("approve TLSSN-1 please"));
+test("factoryOtelConfig names a staging slug and its stage", () => {
+  const staging = factoryOtelConfig({ AGENT_SERVE_GENERATION: "7", FACTORY_ENV: "staging" });
+  assert.equal(staging.serviceName, `${factorySlug}-staging`);
+  assert.equal(staging.resourceAttributes?.["deployment.environment"], "staging");
+  assert.equal(staging.resourceAttributes?.["factory.slug"], `${factorySlug}-staging`);
+});
+
+test("factoryOtelConfig is the same on every call for one env: July's reload on each hosted delivery sees no change", () => {
+  const env = { AGENT_SERVE_GENERATION: "7", OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic x" };
+  assert.equal(JSON.stringify(factoryOtelConfig(env)), JSON.stringify(factoryOtelConfig(env)));
 });

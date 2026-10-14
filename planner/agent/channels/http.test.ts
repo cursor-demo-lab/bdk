@@ -29,8 +29,8 @@ test("under the hosted posture a mounted-route send (any admitted principal) is 
       thrown = error;
     }
     assert.ok(thrown instanceof HttpSessionAdmitError, auth.authenticator);
-    // July's handleRequest maps HttpSessionAdmitError to a 400 invalid_request
-    // (request-error-status.js), so the refusal is a clean reject, not a 500.
+    // July maps HttpSessionAdmitError to a 400 invalid_request (request-error-status.js),
+    // so the refusal is a clean reject, not a 500.
     assert.equal(statusForThrownRequestError(thrown), 400);
   }
 });
@@ -44,7 +44,7 @@ test("the channel override wires the gate into onMessage of the built-in http ch
   assert.equal(await httpOverride.onMessage?.("hello", { auth: null }), "hello");
 });
 
-// Pins on the July 0.2.18 behavior the gate and the docs' "no auto PR"
+// Pins on the July 0.2.24 behavior the gate and the docs' "no auto PR"
 // claim rely on. If an upgrade changes either, these fail and the posture
 // must be re-verified (docs/deployment-issues.md issue 24).
 

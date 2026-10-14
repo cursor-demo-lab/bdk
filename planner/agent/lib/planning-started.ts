@@ -65,7 +65,7 @@ export async function markPlanningStarted(input: {
   return { status: "marked", tracker: tracker.status };
 }
 
-/** One log line per finished planning turn: its tokens when the turn reported usage (a failed turn passes none), plus `cost.model` and the cost when a test injects `data.cost` (else `model: "unknown"`). July 0.2.20 never stamps cost on live `turn.completed`; 0.2.22 still does not. */
+/** One log line per finished planning turn: its tokens when the turn reported usage (a failed turn passes none), plus `cost.model` and the cost when a test injects `data.cost` (else `model: "unknown"`). July 0.2.24 never stamps cost on live `turn.completed`. */
 export function turnModelLine(input: {
   issueKey: string | undefined;
   sessionId: string;

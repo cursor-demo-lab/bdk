@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { metrics } from "@opentelemetry/api";
-import { AggregationTemporality, InMemoryMetricExporter, type MetricData } from "@opentelemetry/sdk-metrics";
+import { AggregationTemporality, InMemoryMetricExporter, MeterProvider, PeriodicExportingMetricReader, type MetricData } from "@opentelemetry/sdk-metrics";
 import { recordImplementation } from "./claim.js";
 import { ticketMergedKey } from "./kv-keys.js";
 import { TICKET_KEY_ATTRIBUTE, TICKET_MERGED_METRIC } from "./factory-otel.js";
-import { factoryMeterProvider } from "./factory-otel-signals.js";
 import type { PrDecision } from "./pr-decide.js";
 import { advanceTicket } from "./pr-status.js";
 import { fakeTracker, memoryKv, type MemoryKv } from "./testing/fakes.js";
@@ -52,7 +51,7 @@ function mergedPoints(exporter: InMemoryMetricExporter): MetricData["dataPoints"
 
 test("a merge that moves the ticket to Done counts it once under its key; the In Review move, a ticket already Done, and a redelivery count nothing", async () => {
   const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
-  const provider = factoryMeterProvider(exporter);
+  const provider = new MeterProvider({ readers: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 3_600_000 })] });
   metrics.setGlobalMeterProvider(provider);
   try {
     assert.deepEqual(await advanceTicket(await deps("In Progress"), IN_REVIEW), { outcome: "moved", move: "transitioned", catchUp: false });
@@ -89,7 +88,7 @@ test("a merge that moves the ticket to Done counts it once under its key; the In
 
 test("a kv that cannot be read still counts the merge (the queries clamp a double count) and never fails the move", async () => {
   const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
-  const provider = factoryMeterProvider(exporter);
+  const provider = new MeterProvider({ readers: [new PeriodicExportingMetricReader({ exporter, exportIntervalMillis: 3_600_000 })] });
   metrics.setGlobalMeterProvider(provider);
   try {
     const merge = await deps("In Review");

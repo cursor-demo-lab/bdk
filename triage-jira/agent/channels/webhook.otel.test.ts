@@ -4,10 +4,9 @@ import { context, trace, TraceFlags } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { BasicTracerProvider, InMemorySpanExporter, ParentBasedSampler, SimpleSpanProcessor, TraceIdRatioBasedSampler, type ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { DESK_TRIAGED_LINE } from "../lib/desk-triaged.js";
-import { registerFactoryTracerProvider } from "../lib/factory-otel.js";
 import channel from "./webhook.js";
 
-// The Jira webhook's factory spans through the real route handler, with the
+// The Jira webhook's factory spans, on the global tracer provider July registers, through the real route handler, with the
 // tracker MCP unconnected so a desk-filed ticket stops at the sentinel (no
 // Jev call, no model turn). Cursor's backend does not sample about 96% of
 // inbound requests, and July's own span, a child of an unsampled parent, is
@@ -28,13 +27,13 @@ context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 const saved = { secret: process.env.JIRA_WEBHOOK_SECRET, log: console.log };
 beforeEach(() => {
   process.env.JIRA_WEBHOOK_SECRET = SECRET;
-  registerFactoryTracerProvider(factoryProvider);
+  trace.setGlobalTracerProvider(factoryProvider);
   exporter.reset();
   console.log = () => undefined;
 });
 afterEach(() => {
   console.log = saved.log;
-  registerFactoryTracerProvider(undefined);
+  trace.disable();
   if (saved.secret === undefined) delete process.env.JIRA_WEBHOOK_SECRET;
   else process.env.JIRA_WEBHOOK_SECRET = saved.secret;
 });

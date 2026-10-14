@@ -26,7 +26,7 @@ async function jiraEvents(): Promise<Record<string, Handler>> {
   return (jira.definition as { events?: Record<string, Handler> }).events ?? {};
 }
 
-/** The channel event context and session context as session-engine.js dispatchEvent builds them. */
+/** The channel event context and session context as July's session engine builds them. */
 function dispatch(input: { state: unknown; continuationToken: string | null; host: Pick<HostContext, "kv" | "mcp"> }) {
   const channel = { channelId: "jira", state: input.state, continuationToken: input.continuationToken, setContinuationToken: async () => {} };
   const ctx = { session: { id: "ses_1", channelId: "jira", title: null }, host: input.host as HostContext, artifacts: {} };
@@ -40,7 +40,7 @@ test("the project runs the implement turn on a cloud agent July can attribute: n
   assert.equal(project.agent.runtime, "local");
   assert.equal(project.agent.allowedTools, undefined, "July refuses a per-send cloud attach on an agent that declares tools");
   assert.deepEqual(project.agent.cloud, { autoCreatePR: false });
-  assert.deepEqual(project.hooks.map((hook) => hook.name).sort(), ["ticket-key", "zz-otel-turn-flush"]);
+  assert.deepEqual(project.hooks.map((hook) => hook.name).sort(), ["ticket-key"]);
   assert.equal(typeof project.httpChannel?.onMessage, "function");
   assert.deepEqual(Object.keys(await jiraEvents()).sort(), ["agent.bound", "turn.failed"]);
 });

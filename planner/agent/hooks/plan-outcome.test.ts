@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { format } from "node:util";
 import type { HostKvApi, HostMcpCallResult } from "@cursor/july";
-import { consoleRecord } from "../lib/factory-otel-signals.js";
 import hook from "./plan-outcome.js";
 
 // The hook as the host dispatches it: one event, a stub context with the
@@ -168,17 +168,16 @@ test("a finished turn whose cost has landed logs cost.model, its cost, and its t
   assert.equal(line?.["issueKey"], "TLSSN-22");
   assert.equal(line?.["sessionId"], "ses_plan");
   assert.equal(line?.["outputTokens"], 2);
-  const exported = consoleRecord(JSON.stringify(line));
-  assert.equal(exported.body, JSON.stringify(line));
-  assert.deepEqual(exported.attributes, {}, "the factory does not parse the body into attributes");
-  assert.match(exported.body, /"model":"auto-smart"/);
-  assert.match(exported.body, /"costUsd":0.5/);
-  assert.match(exported.body, /"pricedFrom":"usage"/);
-  assert.match(exported.body, /"inputTokens":10/);
+  const body = format(JSON.stringify(line));
+  assert.equal(body, JSON.stringify(line));
+  assert.match(body, /"model":"auto-smart"/);
+  assert.match(body, /"costUsd":0.5/);
+  assert.match(body, /"pricedFrom":"usage"/);
+  assert.match(body, /"inputTokens":10/);
 });
 
-// July 0.2.20+ never stamps `cost` on live turn.completed; a test that omits
-// it matches production. Tests that inject `cost` still pass.
+// July 0.2.24 never stamps `cost` on live turn.completed; a test that omits
+// it matches production.
 test("a finished planning turn whose cost has not landed logs its usage with model unknown and no cost", async () => {
   const lines: string[] = [];
   const original = console.log;

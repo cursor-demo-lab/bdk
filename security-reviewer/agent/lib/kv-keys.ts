@@ -26,7 +26,7 @@
 // ../agent.ts, orphans every record written under the old one. July writes
 // `<key>` URI-encoded (`ticket/X-1` is stored as `ticket%2FX-1`), and a key
 // whose encoding is over 256 bytes as `sha256:<hex digest of the raw key>`
-// (0.2.13 dist/storage-protocol.js `keySegment`), so operator tooling that
+// (`keySegment`, July 0.2.24 dist/storage-protocol.js), so operator tooling that
 // reads rows directly must encode keys the same way.
 
 import type { HostKvApi, JsonValue } from "@cursor/july";
