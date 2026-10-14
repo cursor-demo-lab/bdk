@@ -416,8 +416,9 @@ process life; logs are July's session events and the factory's console lines
 (`agent/lib/console-otel.ts`, through July's global logger). User prompts and
 tool content are included, so Grafana access is the only control on them. July
 flushes its trace and log providers after each hosted delivery, at most 1 s;
-the meter provider exports on its own 10 s timer, so a pod destroyed within
-10 s of its last turn loses that interval's metrics. July 0.2.24 starts no
+the meter provider exports on its own 10 s timer, and also when a turn ends
+(`agent/hooks/metrics-flush.ts`) and when the last open factory span of a
+delivery ends (`traceFactory`). July 0.2.24 starts no
 `agent_sdk.http` span for the first request of a process life.
 Setup, Grafana access, and queries:
 [`docs/factory-deployment.md`](docs/factory-deployment.md#11-opentelemetry-export-grafana-cloud);

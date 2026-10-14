@@ -893,8 +893,14 @@ it serves and evals from this directory on its own.
   July adopts it. Factory spans, counters, and logs go through the global
   `@opentelemetry/api` (`trace.getTracer`, `metrics.getMeter`,
   `logs.getLogger`); no other code here may call `setGlobal*Provider` or
-  construct a provider, sampler, exporter, or View. No rebase, no flush of the
-  factory's own: July's flush covers only the providers it built.
+  construct a provider, sampler, exporter, or View. No rebase. July's flush covers only the
+  providers it built, so `agent/hooks/metrics-flush.ts` flushes the factory's
+  provider at `session.waiting|completed|failed` (never `turn.completed`: July's
+  collector records the turn's usage after hooks run). Work with no turn is
+  flushed by `traceFactory` when the last open factory span of its delivery
+  ends (`registerFactoryFlush`, set by `installFactoryMeter`: `factory-metrics.ts`
+  imports `factory-otel.ts`, not the reverse); a `waitUntil` wake is a child span
+  that outlives the delivery span, so its end is the flush.
   `../scripts/otel-version-parity.test.mjs` holds every host's
   `@opentelemetry/*` versions to one set, satisfying July's declared ranges,
   with exactly one copy of `@opentelemetry/api` in each lockfile: a second

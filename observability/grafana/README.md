@@ -650,9 +650,17 @@ wherever a restore shares or carries state:
   alone" branch): a `promtool` run, life 1 growing from 1 to 10 and a
   restored life starting at 10 and growing to 12, returns 22 for a true 12.
 - **What is lost.** A pod frozen or replaced before its next 10 s export loses
-  that interval: July's flush covers only the providers July built, so the
-  factory's meter provider is flushed by its own timer only
-  (`factory-metrics.ts`).
+  that interval: July's flush covers only the providers July built. The
+  factory's meter provider is flushed at the end of every session turn by
+  `agent/hooks/metrics-flush.ts` (`session.waiting` / `completed` / `failed`,
+  before the hosted reply) and when the last open factory span of a delivery
+  ends (`traceFactory`, for webhook, Slack, GitHub and reminder work that runs
+  no turn, including `waitUntil` wakes), so the loss is now limited to the
+  execution request's own `agent_sdk.hosted_execution.duration_ms` and
+  `agent_sdk.http.duration` (July records both after the work, just before the
+  reply), metrics recorded outside a factory span, and exports that fail or
+  exceed the 1 s flush bound (`factory-metrics.ts`). July flushing the
+  registered global meter provider would close the first two.
 
 PromQL cannot tell a restored life from a fresh VM first exported at N, so
 no query can correct what a restore carries. The dashboard and panel
@@ -1432,11 +1440,17 @@ and the modelled hours are neutral: they are figures, not alarms.
   `displayNameFromDS` legend behind `filterFieldsByName` on Cost / filed):
   run `verify.py` and `tools/load_smoke.mjs` against the stack after the
   first apply.
-- **Known loss: the last interval of a destroyed pod.** There is no turn-end
-  flush: July's flush covers only the providers it built, and the factory's
-  meter provider exports on its own 10 s timer. A pod destroyed within 10 s of
-  its last turn loses that interval's metrics, so cost per ticket (tokens by
-  `factory_ticket_key`) can undercount. Loki and Tempo are not affected.
+- **Known loss: the last interval of a destroyed pod, for the request's own
+  duration histograms and metrics recorded outside a factory span.** July's
+  flush covers only the providers it built; the factory's meter provider is
+  flushed at each turn's end by `agent/hooks/metrics-flush.ts` and when a
+  delivery's last open factory span ends (`traceFactory`), each bounded to 1 s,
+  and otherwise exports on its own 10 s timer. A pod destroyed within 10 s of
+  `agent_sdk.hosted_execution.duration_ms` and `agent_sdk.http.duration`
+  (recorded after the work) loses that interval's metrics, and a flush that
+  fails or times out loses its turn's or delivery's. Token usage per ticket
+  (`factory_ticket_key`) is exported with the turn. Loki and Tempo are not
+  affected.
 - **Counters can be off after a restore that carries state.** The hosts keep
   cumulative counters in one MeterProvider (`factory-metrics.ts`) and draw one
   `service.instance.id` per process life; there is no rebase. Two lives that

@@ -1444,16 +1444,36 @@ header on each export (`dist/internal/server.js:141-151,658`,
   key, outcome, reason, PR, agent id) and `error.message` leave as set.
   Grafana access is the only control ([`july-otel-upstream.md`](july-otel-upstream.md)
   section 6).
-- **Flush.** The factory flushes nothing. July flushes the providers it built,
-  traces and logs, after each hosted admission and execution, waiting at most
-  1 s (`hosted-delivery.js:1071-1090`, `runtime.js:27,44,96-117`); otherwise
-  the span and log processors send in batches every 5 s (the SDK default). The
-  factory's meter provider is not one of July's, so only its own 10 s timer
-  exports it: a pod frozen or replaced between exports loses that interval's
-  metrics (cumulative counters recover on the next export from a live pod,
-  but not from a dead one). Known loss, accepted: a pod destroyed within 10 s
-  of its last turn loses that interval's metrics, so cost per ticket can
-  undercount; there is no turn-end flush. The OTLP exporters retry a transient failure with
+- **Flush.** July flushes the providers it built, traces and logs, after each
+  hosted admission and execution, waiting at most 1 s
+  (`hosted-delivery.js:1071-1090`, `runtime.js:27,44,96-117`); otherwise the
+  span and log processors send in batches every 5 s (the SDK default). The
+  factory's meter provider is not one of July's, so July's flush skips it and
+  its own 10 s timer exports it. Every host therefore carries
+  `agent/hooks/metrics-flush.ts`: on `session.waiting`, `session.completed` and
+  `session.failed` it awaits `flushFactoryMetrics()` (`factory-metrics.ts`),
+  capped at 1 s, one `[factory:otel]` console line on a timeout or error, never
+  a throw. Those events run after July's collector recorded the turn's token
+  usage (hooks run before the collector sees an event, so a `turn.completed`
+  hook would flush too early) and before the hosted reply, so the turn's
+  metrics are exported before the VM can be parked. A delivery that runs no
+  turn (a webhook or Slack handler, a `waitUntil` wake, a GitHub hook or task)
+  is covered the same way by `traceFactory` (`factory-otel.ts`): when a factory
+  span ends and no other factory span of its delivery is open, it awaits the
+  same bounded `flushFactoryMetrics()` before the span's promise settles. July
+  awaits the handler and every `waitUntil` promise before it builds the
+  admission reply (`hosted-delivery.js:262-264,294`), so that work finishes
+  first. A `waitUntil` wake is a child of the delivery span that outlives it,
+  so the wake's end is the flush that covers both counters. Still lost,
+  accepted: a pod frozen or replaced between 10 s exports loses that
+  interval's metrics for the execution request's own
+  `agent_sdk.hosted_execution.duration_ms` and `agent_sdk.http.duration`, which
+  July records after the work, just before the reply, and for any metric
+  recorded outside a factory span. July flushing the registered global meter
+  provider in `flushOtel` would cover both
+  ([`july-otel-upstream.md`](july-otel-upstream.md) section 12).
+  Cumulative counters recover on the next export from a live pod, but not from
+  a dead one. The OTLP exporters retry a transient failure with
   their own backoff, and a batch that still fails is dropped. Count deliveries
   by distinct traces or span ids. Who waits on a Jira Automation reply, and
   for how long, is not established in this repo (unverified).
@@ -1660,8 +1680,9 @@ metric dots into underscores (`apj_factory.delivery` →
    still has none ([`july-otel-upstream.md`](july-otel-upstream.md) ask 10), so
    cost on the Factory dashboards is a token-based estimate. These metrics do
    not double-count a duplicated span, but they are approximate (a pod frozen
-   before its next export loses that interval). The Overview dashboard sets
-   Loki counts (distinct `deliveryId`) beside them as the reference.
+   before its next export loses that interval, unless a turn-end or span-end flush ran).
+   The Overview dashboard sets Loki counts (distinct `deliveryId`) beside them
+   as the reference.
 5. Counting deliveries from traces without double-counting duplicated
    spans: Search lists each trace once, and
    `{ resource.service.name = "factory-worker" && name = "factory.delivery" } | select(span:id)`
@@ -1725,8 +1746,10 @@ What matters for us, checked against the installed 0.2.24 package:
   `Math.random` state a restored snapshot can repeat,
   [`july-otel-upstream.md`](july-otel-upstream.md) section 8); a hosted reply
   waits at most July's 1 s flush; the traces and logs resource has no
-  `service.instance.id`; July's session ids label every metric sample; a pod
-  destroyed within 10 s of its last turn loses that interval's metrics.
+  `service.instance.id`; July's session ids label every metric sample; the
+  meter provider is flushed at each turn's end and at a delivery's last factory
+  span (`hooks/metrics-flush.ts`, `traceFactory`), and a pod destroyed within
+  10 s of the request's own duration histograms loses that interval's metrics.
 - **First request of a process life.** Before July's first config load,
   its runtime has traces off. `instrumentHttp` then starts no
   `agent_sdk.http` span and extracts no W3C context

@@ -7,7 +7,7 @@ import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { metrics } from "@opentelemetry/api";
 import { countTicketMerged, DELIVERY_DURATION_BUCKETS_MS, DELIVERY_DURATION_METRIC, HOSTED_EXECUTION_DURATION_BUCKETS_MS, HOSTED_EXECUTION_DURATION_METRIC, TICKET_MERGED_METRIC, traceFactory } from "./factory-otel.js";
-import { lifeId, otlpHeaders } from "./factory-metrics.js";
+import { flushFactoryMetrics, lifeId, otlpHeaders } from "./factory-metrics.js";
 
 // The factory's cumulative meter provider (factory-metrics.ts), loaded the way
 // July loads it: through agent/otel.ts, against a local collector whose OTLP
@@ -152,6 +152,20 @@ test("July's labels are not dropped: no View means the session ids reach the ser
   assert.equal(point.attributes["factory.ticket.key"], "TLSSN-1");
 });
 
+test("flushFactoryMetrics exports the registered provider now, with the header set, and is a no-op with the header unset", async () => {
+  process.env.OTEL_EXPORTER_OTLP_HEADERS = `Authorization=${AUTH.replace(" ", "%20")}`;
+  const before = metricPosts().length;
+  countTicketMerged("TLSSN-9");
+  await flushFactoryMetrics();
+  assert.equal(metricPosts().length, before + 1);
+  assert.deepEqual(decode(metricPosts().at(-1)!).metrics[TICKET_MERGED_METRIC]!.points.filter((point) => point.attributes["factory.ticket.key"] === "TLSSN-9").map((point) => point.value), [1]);
+  delete process.env.OTEL_EXPORTER_OTLP_HEADERS;
+  countTicketMerged("TLSSN-9");
+  await flushFactoryMetrics();
+  assert.equal(metricPosts().length, before + 1, "header unset: nothing is sent");
+  process.env.OTEL_EXPORTER_OTLP_HEADERS = `Authorization=${AUTH.replace(" ", "%20")}`;
+});
+
 test("two process lives draw different ids (a fresh kernel read, the clocks, and the pid, not a generator a snapshot could clone)", () => {
   const dir = fileURLToPath(new URL("../../", import.meta.url));
   const draw = () => spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", 'import { lifeId } from "./agent/lib/factory-metrics.ts"; process.stdout.write(lifeId() + lifeId());'], { cwd: dir, encoding: "utf8", env: { ...process.env, NODE_OPTIONS: "" } });
@@ -164,7 +178,7 @@ test("two process lives draw different ids (a fresh kernel read, the clocks, and
 
 test("when another meter provider already holds the global slot, installFactoryMeter says so in one console line and leaves that provider alone; with a free slot it is silent", () => {
   const dir = fileURLToPath(new URL("../../", import.meta.url));
-  const run = (before: string) =>
+  const run = (before: string, after = "") =>
     spawnSync(
       process.execPath,
       [
@@ -174,10 +188,11 @@ test("when another meter provider already holds the global slot, installFactoryM
         "-e",
         `import { metrics } from "@opentelemetry/api";
          import { MeterProvider } from "@opentelemetry/sdk-metrics";
-         import { installFactoryMeter } from "./agent/lib/factory-metrics.ts";
+         import { flushFactoryMetrics, installFactoryMeter } from "./agent/lib/factory-metrics.ts";
          ${before}
          installFactoryMeter();
          installFactoryMeter();
+         ${after}
          process.stdout.write(String(metrics.getMeterProvider() === (globalThis.__other ?? metrics.getMeterProvider())));`,
       ],
       { cwd: dir, encoding: "utf8", env: { ...process.env, NODE_OPTIONS: "" } },
@@ -186,6 +201,9 @@ test("when another meter provider already holds the global slot, installFactoryM
   assert.equal(taken.status, 0, taken.stderr);
   assert.equal(taken.stdout, "true", "the other provider is still the global one");
   assert.equal(taken.stderr.trim(), "[factory:otel] MeterProvider already registered; factory metrics are not exported", "one line, not one per call");
+  const flushed = run("globalThis.__other = new MeterProvider(); metrics.setGlobalMeterProvider(globalThis.__other);", "await flushFactoryMetrics();");
+  assert.equal(flushed.status, 0, flushed.stderr);
+  assert.equal(flushed.stderr.trim(), "[factory:otel] MeterProvider already registered; factory metrics are not exported", "the flush has no provider of its own to flush and says nothing more");
   const free = run("");
   assert.equal(free.status, 0, free.stderr);
   assert.equal(free.stderr, "");
