@@ -146,8 +146,9 @@ The factory registers one cumulative meter provider before July starts
 (`factory-desk/agent/lib/factory-metrics.ts`), because July's metric exporters
 are DELTA and Grafana Cloud rejects them, and sends its console lines through
 July's logger (`factory-desk/agent/lib/console-otel.ts`). July flushes its
-providers after each hosted delivery, at most 1 s; a pod destroyed within 10 s
-of its last turn loses that interval's metrics. Export is off until
+providers after each hosted delivery, at most 1 s. The meter provider is flushed
+at each turn's end (`agent/hooks/metrics-flush.ts`) and when a delivery's last
+open factory span ends (`traceFactory`), each bounded to 1 s. Export is off until
 `OTEL_EXPORTER_OTLP_HEADERS` is set. Shared by all six hosts. See the factory
 README OpenTelemetry section and
 [`docs/factory-deployment.md`](../docs/factory-deployment.md#11-opentelemetry-export-grafana-cloud).

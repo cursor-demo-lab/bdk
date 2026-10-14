@@ -51,7 +51,9 @@ What the design relies on (July 0.2.24):
 - Metric exporters are DELTA (`runtime.js:181`); nothing configures it.
 - A hosted delivery's work ends with July's `forceFlush`, capped at 1 s
   (`internal/hosted-delivery.js:1071-1090`, `runtime.js:27,44,96-117`); it
-  flushes only the providers July built.
+  flushes only the providers July built. The factory's meter provider is
+  flushed by its own `agent/hooks/metrics-flush.ts` and by `traceFactory` when a
+  delivery's last factory span ends (section 12).
 - July does not export console output: the only log records in its dist are
   the collector's session events (`internal/otel/collector.js:692`, the one
   `logger.emit`) and `runtime.js:162` binds the logger; no file in `dist/`
@@ -65,7 +67,7 @@ What the design relies on (July 0.2.24):
 Status in 0.2.24: closed in July. The memory span path and its deferred export
 (`OTEL_IN_MEMORY_SPAN_LIMIT`, `OTEL_DEFERRED_EXPORT_TIMEOUT_MS`) are gone, and
 the reply waits for July's flush, capped at 1 s (`runtime.js:27,96-117`). The
-factory has no flush of its own. Removed from the factory: the 2.25 s
+factory flushes its own meter provider only (section 12). Removed from the factory: the 2.25 s
 `SIGNALS_BUDGET_MS` wait.
 
 ## 2. Do not re-post a batch the collector rejected with 401 or 403
@@ -306,17 +308,64 @@ The factory does not rewrite the span.
 ## 12. Export the turn's end before the hosted reply
 
 Status in 0.2.24: closed for traces and logs by removing the factory's code,
-open for metrics. The factory had a flush hook (`zz-otel-turn-flush.ts`)
-because July's `forceFlush` skipped the providers the factory had adopted
-(`runtime.js:44` flushes the providers July built). July now builds the trace
-and log providers, so its hosted flush covers them: it runs after each hosted
-admission and execution, after the session's end events
+worked around for metrics. July now builds the trace and log providers, so its
+hosted flush covers them: it runs after each hosted admission and execution,
+after the session's end events
 (`hosted-delivery.js:472,539,623,696,1071-1090`), capped at 1 s. The factory's
-meter provider is not July's, so July's flush does not export it: metrics leave
-on the provider's own 10 s timer, and a pod frozen or replaced in between loses
-that interval. The hook and `otel-turn-flush.ts` were removed (2026-10-14). Ask: let an agent register an extra provider for
-July's `forceFlush`, or build the meter provider with a configurable temporality
-(section 18) so the factory needs none.
+meter provider is not July's (`runtime.js:44` flushes the providers July
+built), so July's flush does not export it, and hosted v2 can park the VM as
+soon as the reply lands.
+
+The factory's workaround is `agent/hooks/metrics-flush.ts`
+(`flushFactoryMetrics` in `lib/factory-metrics.ts`): an awaited, 1 s-bounded
+`forceFlush` of the factory's provider on `session.waiting`,
+`session.completed` and `session.failed`. Order, checked in 0.2.24's dist:
+`session-engine.js` `dispatchEvent` awaits every hook handler of an event
+(`:3724-3750`) and only then calls `this.otel?.onEvent(event)`, where
+`turn.completed` records `cursor.token.usage` and `agent_sdk.turn.count`
+(`otel/collector.js:347-368`), so a `turn.completed` hook flushes too early;
+the `session.*` event that follows each turn (`session-engine.js:1877-1887`) is
+dispatched later on the same per-session chain (`queueDispatch`, `:3646`), and
+hosted execution awaits that chain (`waitForCompletion` `:3789`, called at
+`hosted-delivery.js:794`) before durability drain and the reply.
+
+A delivery that runs no turn has no `session.*` event. `runAdmission` captures
+every `waitUntil` promise (`background.push`, `hosted-delivery.js:262-264`) and
+awaits them all (`:294`) before it builds the admission reply; `afterHostedWork`
+then runs July's flush and replies (`:472,1071-1090`). So work awaited inside
+the handler or inside a `waitUntil` promise finishes before the reply, and
+`traceFactory` (`lib/factory-otel.ts`) flushes the factory's provider when the
+last open factory span of a delivery ends, with the same `flushFactoryMetrics`
+and its 1 s bound, after `recordMetrics` and after `span.end()`. A `waitUntil`
+span starts inside the delivery span, so it is that span's child and outlives
+it (`triage-jira` `webhook.otel.test.ts` pins this): the delivery's span ends
+with the wake still open and the wake's end flushes both counters. The
+`factory-metrics.ts` already imports `factory-otel.ts`, so `factory-otel.ts`
+cannot import the flush back: `installFactoryMeter` registers it with
+`registerFactoryFlush` (held on `globalThis` like the provider). Residual gaps, still on the 10 s
+export: the execution request's own `agent_sdk.hosted_execution.duration_ms`
+(recorded in `finalizeHostedExecutionLatency`, `hosted-delivery.js:861,887`,
+after the drain, via `hosted-execution-latency.js:170-200`) and
+`agent_sdk.http.duration` (`otel/http.js:81`, when the request's span ends),
+which July records after the work; any metric recorded outside a factory span;
+and work a handler detaches from `waitUntil`. July's `afterHostedWork` flush
+(`:1071-1090`) skips the factory's provider.
+
+Behaviour of the span-end flush to know when reading the series:
+- Concurrent deliveries each flush, so full cumulative exports can overlap;
+  Mimir may reject an occasional out-of-order sample, and the next export
+  carries the same cumulative value.
+- A factory span started under a non-factory span (for example the
+  `cloud_agent.drive` launch span `drive_pr` starts inside a turn) is its own delivery and flushes at
+  its end, up to 1 s.
+- A factory span that never settles keeps its delivery from flushing; the
+  session hook and the 10 s timer still apply.
+
+Ask: have `flushOtel` also flush the registered global meter provider (or let
+an agent register an extra provider for it), which also covers the residual
+gaps and retires the span-end flush, or build the meter provider with a
+configurable temporality (section 18) so the factory needs neither this hook
+nor `factory-metrics.ts`.
 
 ## 13. Bug 7: `requestId` and `turn.bound` on cloud turns
 
@@ -486,6 +535,10 @@ monotonic, so that is no way out.
 July builds no meter provider and uses the global one
 (`runtime.js:155-158`: `providers?.metrics?.getMeter(...) ?? metrics.getMeter(...)`),
 which `agent/otel.ts` registers before `startServer`. Traces and logs stay on
-July's providers (`signals: ["traces", "logs"]`). Known loss: there is no
-turn-end flush, so a pod destroyed within 10 s of its last turn loses that
-interval's metrics and cost per ticket can undercount.
+July's providers (`signals: ["traces", "logs"]`). A turn's metrics are
+flushed at the turn's `session.*` event by `agent/hooks/metrics-flush.ts`, and
+at the end of a delivery's factory spans by `traceFactory` (section 12); the
+execution request's own `agent_sdk.hosted_execution.duration_ms` and
+`agent_sdk.http.duration`, and any metric recorded outside a factory span, still
+depend on the 10 s export (section 12), so a pod destroyed within 10 s of them
+loses that interval.
