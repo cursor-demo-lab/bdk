@@ -80,6 +80,8 @@ const GROUPS = [
   { file: "agent/lib/factory-otel.ts", required: ["factory-desk", "factory-worker", "planner", "pr-autofixer", "security-reviewer", "triage-jira"], testedIn: "factory-desk" },
   // The one cumulative meter provider (July's metric exporters are DELTA, which Grafana Cloud rejects): header read on each export, one service.instance.id per process life, one View for July's hosted-execution buckets. factory-desk's factory-metrics.test.ts drives it.
   { file: "agent/lib/factory-metrics.ts", required: ["factory-desk", "factory-worker", "planner", "pr-autofixer", "security-reviewer", "triage-jira"], testedIn: "factory-desk" },
+  // Flushes that meter provider when a session turn ends (session.waiting / completed / failed), before the hosted reply can park the VM. factory-desk's metrics-flush.test.ts drives it.
+  { file: "agent/hooks/metrics-flush.ts", required: ["factory-desk", "factory-worker", "planner", "pr-autofixer", "security-reviewer", "triage-jira"], testedIn: "factory-desk" },
   // Console lines as OTel log records through July's global logger, and Node process warnings exported at WARN. factory-desk's console-otel.test.ts drives it.
   { file: "agent/lib/console-otel.ts", required: ["factory-desk", "factory-worker", "planner", "pr-autofixer", "security-reviewer", "triage-jira"], testedIn: "factory-desk" },
   { file: "agent/otel.ts", required: ["factory-desk", "factory-worker", "planner", "pr-autofixer", "security-reviewer", "triage-jira"] },

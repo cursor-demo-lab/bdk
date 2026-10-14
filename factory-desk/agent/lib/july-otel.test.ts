@@ -82,14 +82,19 @@ test("the header binds and July reloads: one exporter for all three signals, bui
       console.log(`{"desk":"inbound","mark":"${LOG_MARK}"}`);
     })
   );
+  assert.ok(
+    posts("metrics").some((hit) => mentions(hit, "apj_factory.delivery") && mentions(hit, "jira.webhook")),
+    "the delivery's own counter left when its factory span ended, with no July flush and no timer",
+  );
   countTicketMerged("TLSSN-1");
   assert.equal(exportersForSignal(resolveOtelConfig({ authored }).exporters, "metrics").length, 0, "no metrics exporter in the config: July builds no DELTA one");
   assert.equal(exportersForSignal(resolveOtelConfig({ authored }).exporters, "traces").length, 1);
   assert.equal(exportersForSignal(resolveOtelConfig({ authored }).exporters, "logs").length, 1);
   assert.equal(runtime.meter, metrics.getMeter("agent_sdk"), "July's meter is the global one, the factory's cumulative provider's");
   runtime.meter!.createCounter("agent_sdk.session.count").add(1, { "agent_sdk.agent": "factory-desk" });
+  const sent = posts("metrics").length;
   await runtime.forceFlush();
-  assert.equal(posts("metrics").length, 0, "July's flush covers the providers July built: traces and logs");
+  assert.equal(posts("metrics").length, sent, "July's flush covers the providers July built: traces and logs");
   await (metrics.getMeterProvider() as unknown as { forceFlush(): Promise<void> }).forceFlush();
 
   for (const signal of ["traces", "metrics", "logs"]) {

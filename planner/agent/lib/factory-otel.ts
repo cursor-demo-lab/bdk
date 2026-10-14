@@ -117,6 +117,10 @@ const CODE = /^[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,63}$/;
 
 const notes = new WeakMap<Span, FactoryNote>();
 const factorySpans = new WeakSet<Span>();
+/** The factory spans of one delivery share one count of spans still open; the one that brings it to zero flushes metrics. */
+type Flight = { open: number };
+const flights = new WeakMap<Span, Flight>();
+const FLUSH = Symbol.for("apj_factory.otel.flush");
 const instruments = new WeakMap<Meter, { count: ReturnType<Meter["createCounter"]>; duration: ReturnType<Meter["createHistogram"]>; merged: ReturnType<Meter["createCounter"]> }>();
 
 export function envValue(env: NodeJS.ProcessEnv, name: string): string {
@@ -282,6 +286,24 @@ function recordMetrics(input: { work: { span: FactorySpanName; kind: string }; o
   }
 }
 
+/**
+ * Sets what runs when a delivery's factory work is over. lib/factory-metrics.ts
+ * registers flushFactoryMetrics from installFactoryMeter: it imports this file,
+ * so this file cannot import it back. Held on globalThis like the provider it
+ * flushes, so a second copy of this module sees it.
+ */
+export function registerFactoryFlush(flush: () => Promise<void>): void {
+  (globalThis as { [FLUSH]?: () => Promise<void> })[FLUSH] = flush;
+}
+
+async function flushFactoryWork(): Promise<void> {
+  try {
+    await (globalThis as { [FLUSH]?: () => Promise<void> })[FLUSH]?.();
+  } catch {
+    // Telemetry never changes a delivery.
+  }
+}
+
 function factoryTracer(): Tracer {
   return trace.getTracer(FACTORY_OTEL_SCOPE);
 }
@@ -300,15 +322,24 @@ function startOptions(attributes: Attributes): SpanOptions {
 
 /**
  * Runs `run` inside one factory span and returns its result unchanged; a
- * throw is recorded and rethrown.
+ * throw is recorded and rethrown. When the span ends and no factory span of
+ * its delivery is still open, the factory's metrics are flushed (bounded,
+ * never throws) before the returned promise settles. A `waitUntil` span is a
+ * child of the delivery span that outlives it, so the delivery's span ends
+ * with that child still open and the child's end flushes both counters; a
+ * nested span ending inside its parent never flushes.
  */
 export async function traceFactory<R>(work: FactoryWork<R>, run: () => R | Promise<R>): Promise<R> {
   const kind = typeof work.kind === "string" && work.kind !== "" ? work.kind : "unknown";
   const metricKind = codeLike(work.kind) ?? "unknown";
   const ticket = typeof work.ticketKey === "string" ? work.ticketKey : undefined;
   const attributes = { "factory.delivery.kind": kind, ...(ticket === undefined ? {} : { [ATTRIBUTE.ticketKey]: ticket }) };
+  const parent = trace.getActiveSpan();
+  const flight: Flight = (parent === undefined ? undefined : flights.get(parent)) ?? { open: 0 };
   return factoryTracer().startActiveSpan(work.span, startOptions(attributes), async (span) => {
     factorySpans.add(span);
+    flight.open += 1;
+    flights.set(span, flight);
     const started = Date.now();
     const held: FactoryNote = ticket === undefined ? {} : { ticketKey: ticket };
     if (span.isRecording()) notes.set(span, held);
@@ -345,6 +376,8 @@ export async function traceFactory<R>(work: FactoryWork<R>, run: () => R | Promi
     } finally {
       notes.delete(span);
       span.end();
+      flight.open -= 1;
+      if (flight.open === 0) await flushFactoryWork();
     }
   });
 }

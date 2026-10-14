@@ -5,7 +5,7 @@ import { ExportResultCode, type ExportResult } from "@opentelemetry/core";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
 import { resourceFromAttributes, type Resource } from "@opentelemetry/resources";
 import { AggregationTemporality, AggregationType, MeterProvider, PeriodicExportingMetricReader, type PushMetricExporter, type ResourceMetrics } from "@opentelemetry/sdk-metrics";
-import { exportConfigured, factoryOtelConfig, HOSTED_EXECUTION_DURATION_BUCKETS_MS, HOSTED_EXECUTION_DURATION_METRIC, otlpEndpoint } from "./factory-otel.js";
+import { exportConfigured, factoryOtelConfig, HOSTED_EXECUTION_DURATION_BUCKETS_MS, HOSTED_EXECUTION_DURATION_METRIC, otlpEndpoint, registerFactoryFlush } from "./factory-otel.js";
 
 // The factory's one meter provider: cumulative metrics. July's own metric
 // exporters are DELTA (node_modules/@cursor/july/dist/internal/otel/runtime.js:181,
@@ -43,7 +43,23 @@ import { exportConfigured, factoryOtelConfig, HOSTED_EXECUTION_DURATION_BUCKETS_
 //   over those labels.
 //
 // A pod frozen or replaced before the next 10 s export loses that interval:
-// July's forceFlush covers only the providers July built (runtime.js:44).
+// July's forceFlush, which hosted delivery runs before every reply
+// (hosted-delivery.js afterHostedWork, wired at server.js:657), covers only the
+// providers July built (runtime.js:44), and this one is not among them. Hosted
+// v2 can park the VM as soon as the reply lands, so two triggers call
+// flushFactoryMetrics, each bounded, errors logged and never thrown:
+// hooks/metrics-flush.ts when a session turn ends, and traceFactory
+// (lib/factory-otel.ts) when the last open factory span of a delivery ends,
+// which covers work that runs no turn (a webhook or Slack handler, a
+// `waitUntil` wake, a GitHub hook or task, a reminder). That file imports this
+// one's constants, so installFactoryMeter hands it the flush through
+// registerFactoryFlush instead of the reverse import. Not covered, still on
+// the 10 s export: the execution request's own
+// `agent_sdk.hosted_execution.duration_ms` and `agent_sdk.http.duration`, which
+// July records after the work, just before the reply, and any metric recorded
+// outside a factory span. The clean fix is July's flushOtel also flushing the
+// global meter provider, which covers all of these, or CUMULATIVE support in
+// July's exporters, which would retire this file (docs/july-otel-upstream.md).
 //
 // Shared verbatim by all six agents (scripts/copies-parity.test.mjs); its test
 // is factory-desk's factory-metrics.test.ts.
@@ -53,6 +69,8 @@ export const EXPORT_TIMEOUT_MS = 2_000;
 
 const LIFE = Symbol.for("apj_factory.otel.life");
 const INSTALLED = Symbol.for("apj_factory.otel.meter");
+const PROVIDER = Symbol.for("apj_factory.otel.provider");
+export const FLUSH_TIMEOUT_MS = 1_000;
 
 /** OTEL_EXPORTER_OTLP_HEADERS as July reads it: `k=v` pairs split on `,` at the first `=`, each value URL-decoded (a stray `%` is sent as written). */
 export function otlpHeaders(env: NodeJS.ProcessEnv): Record<string, string> {
@@ -129,11 +147,41 @@ export function installFactoryMeter(): void {
   const holder = globalThis as { [INSTALLED]?: true };
   if (holder[INSTALLED] === true) return;
   holder[INSTALLED] = true;
-  const registered = metrics.setGlobalMeterProvider(
-    new MeterProvider({
-      readers: [new PeriodicExportingMetricReader({ exporter: factoryMetricExporter(), exportIntervalMillis: METRIC_INTERVAL_MS, exportTimeoutMillis: EXPORT_TIMEOUT_MS })],
-      views: [{ instrumentName: HOSTED_EXECUTION_DURATION_METRIC, aggregation: { type: AggregationType.EXPLICIT_BUCKET_HISTOGRAM, options: { boundaries: [...HOSTED_EXECUTION_DURATION_BUCKETS_MS] } } }],
-    })
-  );
-  if (!registered) console.warn("[factory:otel] MeterProvider already registered; factory metrics are not exported");
+  const provider = new MeterProvider({
+    readers: [new PeriodicExportingMetricReader({ exporter: factoryMetricExporter(), exportIntervalMillis: METRIC_INTERVAL_MS, exportTimeoutMillis: EXPORT_TIMEOUT_MS })],
+    views: [{ instrumentName: HOSTED_EXECUTION_DURATION_METRIC, aggregation: { type: AggregationType.EXPLICIT_BUCKET_HISTOGRAM, options: { boundaries: [...HOSTED_EXECUTION_DURATION_BUCKETS_MS] } } }],
+  });
+  if (metrics.setGlobalMeterProvider(provider)) {
+    (globalThis as { [PROVIDER]?: MeterProvider })[PROVIDER] = provider;
+    registerFactoryFlush(() => flushFactoryMetrics());
+  } else {
+    console.warn("[factory:otel] MeterProvider already registered; factory metrics are not exported");
+  }
+}
+
+/**
+ * Exports the factory's meter provider now. Waits at most `timeoutMs`. A timeout or a forceFlush rejection is one
+ * console line; a failed export goes to the OTel global error handler, as for the periodic export, and the flush
+ * resolves. Never throws. No-op when this process registered no provider.
+ */
+export async function flushFactoryMetrics(timeoutMs: number = FLUSH_TIMEOUT_MS): Promise<void> {
+  const provider = (globalThis as { [PROVIDER]?: MeterProvider })[PROVIDER];
+  if (provider === undefined) return;
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    const flush = provider.forceFlush().then(() => "done" as const);
+    // Promise.race already handles a late rejection; this makes it explicit.
+    flush.catch(() => undefined);
+    const outcome = await Promise.race([
+      flush,
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), timeoutMs);
+      }),
+    ]);
+    if (outcome === "timeout") console.warn(`[factory:otel] metrics flush exceeded ${timeoutMs}ms; continuing`);
+  } catch (error) {
+    console.warn(`[factory:otel] metrics flush failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    clearTimeout(timer);
+  }
 }

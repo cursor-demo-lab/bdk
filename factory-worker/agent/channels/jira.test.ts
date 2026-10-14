@@ -35,12 +35,12 @@ function dispatch(input: { state: unknown; continuationToken: string | null; hos
 
 const STATE: ImplementSessionState = { kind: "implement", issueKey: "TLSSN-42", changelogId: "10042", title: "Retry CSV export on empty filter", at: "2026-09-23T00:00:00.000Z", owner: "owner-1", retried: false };
 
-test("the project runs the implement turn on a cloud agent July can attribute: no tool allowlist, auto PR off, local otherwise, the ticket-key hook and the gated http channel mounted", async () => {
+test("the project runs the implement turn on a cloud agent July can attribute: no tool allowlist, auto PR off, local otherwise, the ticket-key and metrics-flush hooks and the gated http channel mounted", async () => {
   const project = await projectReady;
   assert.equal(project.agent.runtime, "local");
   assert.equal(project.agent.allowedTools, undefined, "July refuses a per-send cloud attach on an agent that declares tools");
   assert.deepEqual(project.agent.cloud, { autoCreatePR: false });
-  assert.deepEqual(project.hooks.map((hook) => hook.name).sort(), ["ticket-key"]);
+  assert.deepEqual(project.hooks.map((hook) => hook.name).sort(), ["metrics-flush", "ticket-key"]);
   assert.equal(typeof project.httpChannel?.onMessage, "function");
   assert.deepEqual(Object.keys(await jiraEvents()).sort(), ["agent.bound", "turn.failed"]);
 });
