@@ -1358,15 +1358,24 @@ header on each export (`dist/internal/server.js:141-151,658`,
   `serve --dir .` mounts all six in one process, and July allows one OTel
   config per process (`config.js:9-24`), so off managed hosting every agent
   reports `software-factory`. `OTEL_SERVICE_NAME` overrides; it is not a
-  declared secret, so a hosted slug always uses the slug. The only other
-  resource attribute set in code is `service.namespace=software-factory`
-  (the dashboards select on `service_name` and `service_namespace`). July adds `service.name`, `telemetry.sdk.language`,
+  declared secret, so a hosted slug always uses the slug (on staging the
+  slug is `<slug>-staging`). The other resource attributes set in code
+  (`factoryOtelConfig` in `agent/lib/factory-otel.ts`) are
+  `service.namespace=software-factory` (the dashboards select on
+  `service_name` and `service_namespace`), `deployment.environment` and
+  `deployment.environment.name` (the stage), and `factory.slug` (hosted
+  only). July spreads them into its traces and logs resource
+  (`runtime.js:255`). July adds `service.name`, `telemetry.sdk.language`,
   `cursor.surface`, `cursor.entrypoint`, and `agent_sdk.framework`
   (`runtime.js:246-261`) to its traces and logs. BDK ignores
   `OTEL_RESOURCE_ATTRIBUTES` (the resource is built from the config only), so
-  the factory does not read it either. The metrics resource is
-  `service.name`, `service.namespace`, and `service.instance.id`; the traces
-  and logs resource has no instance id.
+  the factory does not read it either. The metrics resource
+  (`exportResource` in `agent/lib/factory-metrics.ts`) is the same
+  attributes plus `service.instance.id`, so it has six keys on a hosted pod:
+  `service.name`, `service.namespace`, `deployment.environment`,
+  `deployment.environment.name`, `factory.slug`, and `service.instance.id`.
+  The stage attributes are there because the tree has a staging stage. The
+  traces and logs resource has no instance id.
 - **Spans.** July's `agent_sdk.http`, `agent_sdk.turn`, `agent_sdk.tool`,
   `agent_sdk.subagent`, and host MCP client spans, and the factory's
   `factory.*` spans, go through July's `NodeTracerProvider` with a
