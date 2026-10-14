@@ -493,7 +493,7 @@
       <p class="eyebrow">APJ GTM · Software factory</p>
       <h1>End to end on Slack, Jira, and GitHub</h1>
       <p class="dek">A person opens a request with <code>@Factory</code> in one Slack thread, reacts ✅ twice (once to file, once on the plan), then reviews and merges on GitHub. Plain replies in the thread need no mention. Six hosted agents run, one per stage, and none calls another: each writes its artifact to the Jira ticket and moves it, and the next wakes on that status. The thread reads: the filing prompt with Jev's triage, ✅, the Filed post, Triaged, the plan post, ✅, exactly one In Progress post, the marsbank pull request, review updates (🐛 🔒 🏗️ 📡 🔧, in that order), and In Review. The swimlane with every artifact is <a href="e2e.html">e2e.html</a>.</p>
-      <p class="meta"><code>@cursor/july@0.2.22</code> · Cursor-managed hosting v2 · sandbox <code>cursor-demo-lab/marsbank</code> · Jira project <code>TLSSN</code> · Jira status as the bus · ✅ / ❌ reaction gates (<code>reactions:read</code>, <code>reaction_added</code>), no buttons · host model Auto (<code>auto-smart</code>, <code>optimize_for=balanced</code>), <code>factory-desk</code> on <code>grok-4.6-fast</code></p>
+      <p class="meta"><code>@cursor/july@0.2.24</code> · Cursor-managed hosting v2 · sandbox <code>cursor-demo-lab/marsbank</code> · Jira project <code>TLSSN</code> · Jira status as the bus · ✅ / ❌ reaction gates (<code>reactions:read</code>, <code>reaction_added</code>), no buttons · host model Auto (<code>auto-smart</code>, <code>optimize_for=balanced</code>), <code>factory-desk</code> on <code>grok-4.6-fast</code></p>
       <ul class="sources">
         <li><a href="e2e.html">Every step, swimlane</a></li>
         <li><a href="../event-driven-factory.md">Design</a></li>
@@ -935,7 +935,7 @@ done</code></pre>
       <details>
         <summary>Check the loop without Slack</summary>
         <p class="warn">From <code>this repository</code>. Node 22.18+, never Bun. <code>serve</code> needs a signed-in Cursor host; the worker's GitHub channel starts the Cursor event stream.</p>
-        <pre>npx -p @cursor/july@0.2.22 agent-sdk serve --dir factory-worker --mode single --dev</pre>
+        <pre>npx -p @cursor/july@0.2.24 agent-sdk serve --dir factory-worker --mode single --dev</pre>
         <p class="warn">Signed synthetic Jira transition, with <code>JIRA_WEBHOOK_SECRET</code> exported. It launches a real cloud agent.</p>
         <pre>node scripts/replay-jira-transition.mjs http://127.0.0.1:3000/v1/channels/jira/ TLSSN-42 Approved</pre>
         <p class="warn">A person's merge of the implement pull request, as a loopback fixture (unsigned is admitted under <code>--dev</code> only). It moves a real ticket that the worker launched.</p>

@@ -11,11 +11,11 @@ Design and the six-agent factory it belongs to:
 # The Jira host connection means call/eval/serve need a signed-in host;
 # validate, info, check, test do not.
 npm run check && npm test
-npx -p @cursor/july@0.2.22 agent-sdk validate --dir .
-npx -p @cursor/july@0.2.22 agent-sdk info --dir . --json
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --tag smoke
-npx -p @cursor/july@0.2.22 agent-sdk serve --dir . --dev
+npx -p @cursor/july@0.2.24 agent-sdk validate --dir .
+npx -p @cursor/july@0.2.24 agent-sdk info --dir . --json
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --tag smoke
+npx -p @cursor/july@0.2.24 agent-sdk serve --dir . --dev
 ```
 
 Run the CLI under Node, never Bun. The desk has no peer connections, so
@@ -876,80 +876,49 @@ it serves and evals from this directory on its own.
   every tool a declared write (July 0.2.12+ retries a read-effect tool on
   an error text with a bare 429/502/503/504 in it, a Jira key like
   `MARS-503` included), and forbids `needsApproval`. The shared `verify-webhook.ts`, `kv-verified.ts`,
-  `claim-lease.ts`, `ops-funnel.ts`, and `factory-otel.ts` are tested here
-  for every project that copies them. `factory-otel.ts`,
-  `factory-otel-signals.ts`, `factory-otel-rebase.ts`, and `agent/otel.ts` (every host) are the OTLP
-  export of traces, metrics, and logs and the `factory.*` spans around
-  sessionless work (`../docs/factory-deployment.md`, section 11);
-  `agent/lib/factory-otel-signals.test.ts` covers the id generator, the
-  tracer provider and its global registration (with the context manager
-  and the `global_provider_taken` warning), the metric View, and the retry
-  of a failed export;
-  `agent/lib/factory-otel-rebase.test.ts` covers the per-life counter
-  rebase (at the first new `service.instance.id` drawn after a restore, every
-  counter and histogram subtracts the old life's newest export (the newest
-  pending one newer than the last delivered or header-less tick, else that
-  tick), so one turn is about one increment; failed exports and late results
-  leave the loss and overcount cases in `../docs/factory-deployment.md`,
-  section 11, and what was counted in the up to 10 s before the draw goes to
-  the new life); and
-  `agent/lib/july-otel.test.ts` pins the July internals they rely on (what it
-  records under an unsampled request, and what the hosted reply waits for), and
-  `agent/lib/july-otel.turn-end.test.ts` the two ways a turn's end reaches the
-  wire incomplete: a tool span ended with no status, and a turn span and
-  count that nothing July awaits before the reply exports (both July's; the
-  test fails when a July upgrade changes either, and says what to do);
-  `../docs/july-otel-upstream.md` sections 11 and 12. Before Bug 6b the
-  span sat in July's memory buffer, where an overlapping flush's `reset()`
-  dropped it. Under the approved 6b exception the factory's tracer provider
-  is the global one (`installFactorySignals`, with an AsyncLocalStorage
-  context manager), so July is given no signal exporter, records no span in
-  memory, and its spans wait in the factory's queue; the turn-end test pins
-  that, and that July's `forceFlush` exports none of them. The second gap
-  has a factory mitigation in every host: `agent/hooks/zz-otel-turn-flush.ts`
-  (loads last of all hooks: `agent/hooks/` in `localeCompare` order, then
-  extension hooks; `../scripts/otel-turn-flush-order.test.mjs`) schedules
-  `flushFactorySignals()` with `setImmediate` from `turn.completed` and
-  `turn.failed` through `agent/lib/otel-turn-flush.ts`
-  (`agent/lib/otel-turn-flush.test.ts`; the turn-end test proves the export in
-  the overlapping-flush case and, with a meter-collection callback, that the
-  meter is collected only after July's collector counted the turn).
-  It flushes only the factory's own providers, is coalesced
-  and error-contained, and the reply does not await it. The same hook awaits
-  `flushFactorySignals()` (`awaitFactorySignalsFlush`) from `session.waiting`,
-  `session.completed`, and `session.failed`, which July dispatches after the
-  turn's end on the chain the hosted reply waits for (Bug 6a; the turn-end
-  test proves the count and, since 6b, the turn span are exported before
-  that hook returns: 6b depends on this awaited flush).
+  `claim-lease.ts`, `ops-funnel.ts`, `factory-otel.ts`, `factory-metrics.ts`,
+  and `console-otel.ts` are tested here for every project that copies them.
+- OTel (`agent/otel.ts`, `lib/factory-otel.ts`, `lib/factory-metrics.ts`,
+  `lib/console-otel.ts`, all shared by every host;
+  `../docs/factory-deployment.md` section 11, `../docs/july-otel-upstream.md`):
+  `agent/otel.ts` hands July a plain config (`factoryOtelConfig`: the slug as
+  `service.name`, the namespace and stage resource attributes, one OTLP
+  exporter for traces and logs while `OTEL_EXPORTER_OTLP_HEADERS` is set), and
+  July builds the tracer and logger providers, registers them globally, and
+  flushes them after each hosted delivery. Metrics are the one exception:
+  July's metric exporters are DELTA and Grafana Cloud answers a DELTA sum with
+  HTTP 400, so `lib/factory-metrics.ts` registers one cumulative meter provider
+  (header read on each export, one `service.instance.id` per process life, one
+  View for July's hosted-execution buckets) before July's `startServer`, and
+  July adopts it. Factory spans, counters, and logs go through the global
+  `@opentelemetry/api` (`trace.getTracer`, `metrics.getMeter`,
+  `logs.getLogger`); no other code here may call `setGlobal*Provider` or
+  construct a provider, sampler, exporter, or View. No rebase, no flush of the
+  factory's own: July's flush covers only the providers it built.
   `../scripts/otel-version-parity.test.mjs` holds every host's
   `@opentelemetry/*` versions to one set, satisfying July's declared ranges,
   with exactly one copy of `@opentelemetry/api` in each lockfile: a second
-  copy gets its own global registry, so a provider or active context one
-  copy holds is invisible to the other.
-  A factory span is a new root linked
-  to the inbound span, never a child of July's (an unsampled parent would
-  drop it). An id a VM must not share with its restored clones (a span or
-  trace id, an instance id) is drawn when it is needed with `wakeHex`,
-  never at import and never from `Math.random`. A new
-  entry point (channel route, Slack or GitHub hook, reminder, schedule)
-  goes through `traced` / `tracedGithubHook`, work handed to `waitUntil`
-  through `traceFactory` with `factory.background`. Factory span notes
-  and `error.message` leave as set. Logs and traces are exported
-  unaltered (original body, only attributes the emitter set; the
-  factory does not parse bodies to mint fields). A console line's
-  level is its method's, except Node's print of a process warning
-  (it goes through `console.error`), which `bridgeConsole` exports
-  once at WARN by wrapping `process.emit("warning")`, so the window is
-  exactly that synchronous dispatch (a print it cannot match, and a
-  listener that writes Node's exact shape inside the dispatch, ahead of
-  Node's print, when Node prints nothing (`--no-warnings`,
-  `NODE_NO_WARNINGS=1`, `--disable-warning`, `--redirect-warnings`), or when Node's print did
-  not match, are the documented exceptions in
-  `docs/factory-deployment.md`); the console-bridge tests in
-  `factory-otel-signals.test.ts` pin that and that every other line
-  keeps its level. User prompts and tool
-  content are on in the resolver; Grafana access is the only control.
-  A kv failure the code ignores goes through `warnKv(site, error)`
+  copy gets its own global registry, so a provider or active context one copy
+  holds is invisible to the other.
+- OTel rules: a factory span is a new root linked to the inbound span, never a
+  child of July's (an unsampled parent would drop it). A new entry point
+  (channel route, Slack or GitHub hook, reminder, schedule) goes through
+  `traced` / `tracedGithubHook`; work handed to `waitUntil` goes through
+  `traceFactory` with `factory.background`. Factory span notes and
+  `error.message` leave as set. Logs and traces are exported unaltered. A
+  console line's level is its method's, except Node's process-warning print,
+  which `console-otel.ts` exports once at WARN (documented exceptions in
+  `../docs/factory-deployment.md`). The ticket key goes on July's spans and
+  metrics only through `tagSessionTicket`. User prompts and tool content are
+  on in the config; Grafana access is the only control.
+- OTel tests: `factory-otel.test.ts` (config, spans, notes),
+  `factory-otel.ticket.test.ts` (ticket label, merged counter),
+  `factory-metrics.test.ts` (cumulative export, headers per export, instance
+  id, buckets), `console-otel.test.ts` (console bridge, Node warnings, diag
+  guard), and `july-otel.test.ts` (July's real runtime exporting through
+  `agent/otel.ts` to a local collector; it fails when a July upgrade changes a
+  behaviour the design relies on, and says what to do).
+- A kv failure the code ignores goes through `warnKv(site, error)`
   (`agent/lib/ops-funnel.ts`), never a silent `.catch(…)`, `.then(ok,
   …)`, dropped `Promise.allSettled`, or empty `catch`:
   `../scripts/kv-swallow-scan.test.mjs` fails on one in any agent. A
@@ -1006,15 +975,15 @@ it serves and evals from this directory on its own.
   labels and host code holds the threshold rule. Do not add a classifier
   prompt of its own.
 - Add npm deps. Stick to what `@cursor/july` already ships. The declared
-  `@opentelemetry/*` packages (API, trace, metrics and logs SDKs, OTLP
-  proto exporters, resources, core, and `context-async-hooks`, a runtime
-  dependency since the factory registers the context manager itself) are
-  July's own, pinned to the versions it installs.
+  `@opentelemetry/*` packages (API, metrics SDK and its OTLP proto
+  exporter, resources, core; the trace and log SDK packages are
+  devDependencies for tests) are July's own, pinned to the versions it
+  installs.
 - Run `slack create` here without meaning to own the factory's one Slack app.
 
 ## Pointers
 
 - Package loop: `node_modules/@cursor/july/AGENTS.md`
 - Skills: `node_modules/@cursor/july/skills/` (`create-agent`, `deploy`, `evals`, `hillclimb`, `debug`)
-- Docs: `npx -p @cursor/july@0.2.22 agent-sdk docs`
+- Docs: `npx -p @cursor/july@0.2.24 agent-sdk docs`
 - LLM docs index: `node_modules/@cursor/july/dist/docs/llms.txt`

@@ -50,7 +50,7 @@ what to build is the step a person most wants to see.
 | Approve | Reply `approve` (or `approve TLSSN-42`) in the thread | ✅ on that message and a `starting implementation…` crumb |
 | Open the PR | Nothing to click | The In Progress line with the cloud agent link, then the In Review line linking a ready PR on the sandbox |
 | Bugbot | Wait | Bugbot review on the PR |
-| Security pass | `npx -p @cursor/july@0.2.22 agent-sdk github replay <owner>/<repo>#N --dir security-reviewer` | `## Security review` comment on the PR |
+| Security pass | `npx -p @cursor/july@0.2.24 agent-sdk github replay <owner>/<repo>#N --dir security-reviewer` | `## Security review` comment on the PR |
 | Failed build | Plant a lint failure and wait | The check fails, the fixer claims the PR, a cloud VM pushes, and the check passes. For a PR the factory did not open, a person types `factory: drive` on it |
 | Risk gate | Try to merge before Bugbot and CI are green | GitHub blocks the merge |
 | Merge or escalate | Merge after review; or leave CI red | Merge; or the red check appears in `#factory-escalations` |

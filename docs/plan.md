@@ -1,6 +1,6 @@
 # Plan: template factory with a Slack desk
 
-The chosen factory. Six `@cursor/july@0.2.22` hosts, each deployed as its
+The chosen factory. Six `@cursor/july@0.2.24` hosts, each deployed as its
 own hosted v2 slug: three official templates, unmodified outside their
 documented edit points, and three authored agents, the Slack desk, the
 planner, and `factory-worker`. `@cursor/bdk` 0.2.18 ships the same CLI
@@ -93,14 +93,14 @@ shell on the local runtime.
 cd .
 # docs/ already lives here. Init the six projects as siblings of docs/.
 
-npx -p @cursor/july@0.2.22 agent-sdk init ./triage-jira --template triage-jira --json
-npx -p @cursor/july@0.2.22 agent-sdk init ./security-reviewer --template security-reviewer \
+npx -p @cursor/july@0.2.24 agent-sdk init ./triage-jira --template triage-jira --json
+npx -p @cursor/july@0.2.24 agent-sdk init ./security-reviewer --template security-reviewer \
   --var repos=<owner>/<repo> --json
-npx -p @cursor/july@0.2.22 agent-sdk init ./pr-autofixer --template pr-autofixer \
+npx -p @cursor/july@0.2.24 agent-sdk init ./pr-autofixer --template pr-autofixer \
   --var repos=<owner>/<repo> --json
-npx -p @cursor/july@0.2.22 agent-sdk init ./factory-desk --json
-npx -p @cursor/july@0.2.22 agent-sdk init ./planner --json
-npx -p @cursor/july@0.2.22 agent-sdk init ./factory-worker --json
+npx -p @cursor/july@0.2.24 agent-sdk init ./factory-desk --json
+npx -p @cursor/july@0.2.24 agent-sdk init ./planner --json
+npx -p @cursor/july@0.2.24 agent-sdk init ./factory-worker --json
 ```
 
 `--var repos=` must name one GitHub owner. Commit the untouched output as
@@ -119,7 +119,7 @@ returns, and the deviations are recorded in `docs/edits.md`.
 2. Cursor dashboard, MCP: connect Jira to `example.atlassian.net`.
    `triage-jira/agent/mcp-connections/tracker.ts` reads it with
    `cursorAccount: true`. No Jira token in env.
-3. `npx -p @cursor/july@0.2.22 agent-sdk login` once. `serve` refuses to start signed
+3. `npx -p @cursor/july@0.2.24 agent-sdk login` once. `serve` refuses to start signed
    out.
 4. Cursor dashboard: turn Bugbot on for `<owner>/<repo>`.
 5. GitHub: branch protection on `main` requiring the CI check, the Bugbot
@@ -128,8 +128,8 @@ returns, and the deviations are recorded in `docs/edits.md`.
 ### Slack (one app, desk only)
 
 ```bash
-npx -p @cursor/july@0.2.22 agent-sdk slack create --dir factory-desk
-npx -p @cursor/july@0.2.22 agent-sdk slack doctor --dir factory-desk --prefix FACTORY_DESK
+npx -p @cursor/july@0.2.24 agent-sdk slack create --dir factory-desk
+npx -p @cursor/july@0.2.24 agent-sdk slack doctor --dir factory-desk --prefix FACTORY_DESK
 ```
 
 Tokens land in `factory-desk/.env.local` as `FACTORY_DESK_SLACK_BOT_TOKEN`
@@ -157,8 +157,8 @@ and the desk is where they answer.
 ### Serve
 
 ```bash
-npx -p @cursor/july@0.2.22 agent-sdk validate --dir .
-npx -p @cursor/july@0.2.22 agent-sdk serve --dir . --dev
+npx -p @cursor/july@0.2.24 agent-sdk validate --dir .
+npx -p @cursor/july@0.2.24 agent-sdk serve --dir . --dev
 ```
 
 Every project also has `npm start` (`agent-sdk serve --dir . --dev`),
@@ -207,10 +207,10 @@ route path stays the same behind the tunnel host.
 
 ```bash
 # Review: replay a real sandbox PR through the relay route (posts one review comment)
-npx -p @cursor/july@0.2.22 agent-sdk github replay <owner>/<repo>#12 --dir security-reviewer
+npx -p @cursor/july@0.2.24 agent-sdk github replay <owner>/<repo>#12 --dir security-reviewer
 
 # Snapshot fixtures for offline evals, no POST
-npx -p @cursor/july@0.2.22 agent-sdk github replay <owner>/<repo>#12 --dir security-reviewer \
+npx -p @cursor/july@0.2.24 agent-sdk github replay <owner>/<repo>#12 --dir security-reviewer \
   --events '*' --dry-run --out security-reviewer/fixtures/github
 
 # PR: opt a sandbox PR in (spends cloud budget, pushes to the PR head)
@@ -219,7 +219,7 @@ curl -s -X POST http://127.0.0.1:3000/pr-autofixer/v1/channels/drive \
   -d '{"pr":"https://github.com/<owner>/<repo>/pull/12"}'
 
 # Debounce proof, no model turn: burst the check fixtures at a driven PR
-npx -p @cursor/july@0.2.22 agent-sdk github replay <owner>/<repo>#12 --dir pr-autofixer \
+npx -p @cursor/july@0.2.24 agent-sdk github replay <owner>/<repo>#12 --dir pr-autofixer \
   --events '*' --conclusion failure
 ```
 
@@ -254,19 +254,19 @@ npx -p @cursor/july@0.2.22 agent-sdk github replay <owner>/<repo>#12 --dir pr-au
 
 ```bash
 for d in triage-jira security-reviewer pr-autofixer; do
-  npx -p @cursor/july@0.2.22 agent-sdk validate --dir "$d" && npx -p @cursor/july@0.2.22 agent-sdk eval --dir "$d"
+  npx -p @cursor/july@0.2.24 agent-sdk validate --dir "$d" && npx -p @cursor/july@0.2.24 agent-sdk eval --dir "$d"
 done
 
 # Desk smoke cases: single-mount eval fails at boot on the unresolved peer,
 # so run from the root with --slug. This boots the whole factory, including
 # the GitHub relay for the two cursorAccount templates: fresh state root,
 # never production env.
-npx -p @cursor/july@0.2.22 agent-sdk validate --dir . && \
-  npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --slug factory-desk --tag smoke --state-root "$(mktemp -d)"
+npx -p @cursor/july@0.2.24 agent-sdk validate --dir . && \
+  npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --slug factory-desk --tag smoke --state-root "$(mktemp -d)"
 
 # Desk route case needs the factory served on a fresh state root with no live env
-npx -p @cursor/july@0.2.22 agent-sdk serve --dir . --port 3777 --state-root "$(mktemp -d)"
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir factory-desk --url http://127.0.0.1:3777/factory-desk --tag route
+npx -p @cursor/july@0.2.24 agent-sdk serve --dir . --port 3777 --state-root "$(mktemp -d)"
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir factory-desk --url http://127.0.0.1:3777/factory-desk --tag route
 ```
 
 Typecheck each project with `npm run check` in that directory.
@@ -274,10 +274,10 @@ Typecheck each project with `npm run check` in that directory.
 ### Deploy
 
 Deploy each of the six folders as its own slug from a pushed commit, with
-the CLI pinned (`bdk` from `@cursor/bdk@0.2.22` is the same command):
+the CLI pinned (`bdk` from `@cursor/bdk@0.2.24` is the same command):
 
 ```bash
-npx -y -p @cursor/july@0.2.22 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team>
+npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team>
 ```
 
 | Folder | Slug |
