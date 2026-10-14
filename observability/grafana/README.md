@@ -277,9 +277,9 @@ Datasource uids: `grafanacloud-prom`, `grafanacloud-logs`,
 | `agent_sdk_session_count_total` | `agent_sdk_agent`, `agent_sdk_channel` |
 | `agent_sdk_turn_count_total` | `agent_sdk_turn_status`, `factory_ticket_key` |
 | `cursor_token_usage_total` | `cursor_token_type`: `input`, `cache_read`, `output`, `reasoning`; `factory_ticket_key` |
-| `cursor_cost_usage_USD_total` | gone after July 0.2.20; 0.2.22 emits none. Historical series only. Do not query |
-| `cursor_tool_calls_total` | `cursor_tool_name`, `cursor_tool_status` (`success`, `failure`); never `factory_ticket_key` (dropped: pricing does not need it, and a series per tool per ticket, 40 to 60 per ticket, would reach the 500 cap at some 10 to 12 distinct tickets in one 10 s interval) |
-| `apj_factory_kv_failure_total` | `slug`, `site`, `reason` (bind emits a zero baseline with `site="none"`, `reason="none"`); never `factory_ticket_key`, whatever session the bound host belonged to |
+| `cursor_cost_usage_USD_total` | gone after July 0.2.20; 0.2.24 still emits none. Historical series only. Do not query |
+| `cursor_tool_calls_total` | `cursor_tool_name`, `cursor_tool_status` (`success`, `failure`); also carries `factory_ticket_key` and the session ids (July stamps the session's tag bag on every sample and the factory has no View to drop it): a series per tool, status, ticket and session, which no panel breaks down |
+| `apj_factory_kv_failure_total` | `slug`, `site`, `reason` (bind emits a zero baseline with `site="none"`, `reason="none"`); a session-bound `host.otel` also merges that session's tag bag, so a sample can carry any session's `factory_ticket_key`; no panel groups by it |
 | `apj_factory_ticket_merged_total` | `factory_ticket_key`: one per ticket the worker moved to Done on a merged PR, counted once per Jira issue however many PRs close it (the denominator of cost per merged ticket) |
 
 **`factory_ticket_key`** (OTLP attribute `factory.ticket.key`, the same name
@@ -287,20 +287,20 @@ the `factory.*` spans carry) is the Jira key of the ticket a turn worked on.
 Each host that runs model turns has a hook (`agent/hooks/ticket-key.ts`)
 that resolves the turn's ticket on `turn.started` and writes it as a
 session tag through July's public API, `ctx.host.otel.setAttributes`
-(`host-otel.js` → `collector.setSessionAttributes`). July then does two
+(`host-otel.js:47-54` → `collector.setSessionAttributes`, `collector.js:61-65`). July then does two
 things with the tag, both of which the factory relies on: it merges the
 tag into the attributes of every metric sample it records for the session
-(`collector.js` `join`: `cursor.token.usage`,
+(`collector.js:619` `join`: `cursor.token.usage`,
 `agent_sdk.turn.count`, `cursor.tool.calls`, …; 0.2.20 dropped `cursor.cost.usage`) and into the attributes
 of every span it starts for the session afterwards (`agent_sdk.turn`,
 `agent_sdk.turn.<phase>`, `agent_sdk.tool`, `agent_sdk.subagent`), and it
 paints the tag onto the session's already-open `agent_sdk.turn`,
-`agent_sdk.tool` and `agent_sdk.subagent` spans (`paintOpenSpans`). Hooks
+`agent_sdk.tool` and `agent_sdk.subagent` spans (`paintOpenSpans`, `collector.js:627`). Hooks
 run before July's collector sees the event, so the tag set on
 `turn.started` is on every metric sample of the turn.
 
 Which spans carry it, exactly. July appends `turn.started` to an async
-dispatch queue (`session-engine.js` `queueDispatch`) and, in the same
+dispatch queue (`session-engine.js:3646` `queueDispatch`) and, in the same
 synchronous stretch, opens the turn's first phase span (`agent_sdk.turn.prewarm`
 when a local workspace is prewarmed, else `.workspace`, else `.nudges`),
 so that first phase span always starts before the hook's `setAttributes`
@@ -335,24 +335,19 @@ an exporter directly. Nothing else on July's spans or logs changes: no
 attribute is removed, rewritten, or added, no span is suppressed, and July's
 logs carry no ticket (the session bag does not reach `emitLog`).
 
-On metrics the label is kept only where pricing needs it. The factory's
-metric View (`factory-otel-signals.ts` `metricAttributes`) keeps
-`factory_ticket_key` on three instruments, `TICKET_LABELLED_METRICS` in
-`factory-otel.ts`: `cursor_token_usage_total`,
-`agent_sdk_turn_count_total` and `apj_factory_ticket_merged_total`. (July 0.2.20 dropped `cursor.cost.usage`.) The
-factory's meter wrapper records those counters under a marked context, and
-the View drops the key from any sample recorded outside it, like every
-other session tag. So `cursor_tool_calls_total` never carries it (above),
-and nor does `apj_factory_kv_failure_total`: a session-bound `host.otel`
-merges the session's tag bag into every increment it makes, and
-`ops-funnel.ts` keeps the last bound host, so any session's ticket can
-arrive on a kv-failure sample; the View drops it there
-(`factory-otel.ticket.test.ts`). The label's values are bounded to one
-series per Jira key plus two fixed values: `none` when the turn has no
-ticket yet or no ticket at all, and `other` for a session pin that is not
-a Jira key (nothing per request, session or VM reaches a metric). A turn
-no hook tagged (none exist: every host with model turns has the hook) would
-be `none`, not an unlabelled row. Where each slug's key comes from:
+On metrics the label lands on every sample July records for the session
+(`cursor_token_usage_total`, `agent_sdk_turn_count_total`,
+`cursor_tool_calls_total`, ...), because July stamps the whole tag bag and the
+factory's meter provider has no View to drop it where pricing does not need it
+(the earlier View kept it on three instruments only). That is one more series
+per tool, status and ticket on `cursor_tool_calls_total`, which no panel reads
+by ticket. `apj_factory_ticket_merged_total` is the factory's own counter
+(`countTicketMerged`, on the global meter). The label's values are bounded to
+one series per Jira key plus two fixed values: `none` when the turn has no
+ticket yet or no ticket at all, and `other` for a session pin that is not a
+Jira key (`ticketLabel` in `factory-otel.ts`, the one helper the hooks call).
+A turn no hook tagged (none exist: every host with model turns has the hook)
+would be `none`, not an unlabelled row. Where each slug's key comes from:
 
 | Slug | Key | `none` when |
 | --- | --- | --- |
@@ -369,21 +364,19 @@ latest ticket changed, a drive re-pointed) is re-tagged on each
 only; the tag overwrites, nothing is counted twice (`july-otel.test.ts`).
 
 An implement cloud turn is one turn for the whole run: July reads the run's
-usage from `@cursor/sdk` when `wait()` returns (`dist/internal/sdk-runner.js`,
-`fillMissingCloudUsage` when the stream dropped it) and the collector
+usage from `@cursor/sdk` when `wait()` returns (`dist/internal/sdk-runner.js:779-795`,
+`fillMissingCloudUsage` at `:415` when the stream dropped it) and the collector
 records it against the worker's session on the turn's `turn.completed`
-(`dist/internal/otel/collector.js`), so a long implementation lands as
+(`dist/internal/otel/collector.js:355-369`), so a long implementation lands as
 one `cursor_token_usage_total` sample per token type and one
 `agent_sdk_turn_count_total` increment, hours after `turn.started`, on the
 pod that ran the turn. An implement run's cost is the token-based estimate
-(July 0.2.22 emits no `cursor.cost.usage`). Before 2026-10-04 the worker launched that
-agent through `@cursor/sdk` `Agent.create`, invisible to July, so no
-implementation cost reached these metrics at all and cost per ticket
-undercounted every ticket by its implement run; the cost panels
-before that date are the planning, triage, desk, fixer, and reviewer turns
-only. In one line: worker cloud turns are counted since #229, except a
-heal relaunch (`via: "heal"`, **Launch retries / heals**), which still
-goes through `@cursor/sdk` and is not.
+(July 0.2.24 emits no `cursor.cost.usage`: `dist/internal/host-otel.js:14` only reserves the name). Dated note: before 2026-10-04
+the worker launched that agent through `@cursor/sdk` `Agent.create`,
+invisible to July, so cost panels before that date cover the planning,
+triage, desk, fixer and reviewer turns only. In one line: worker cloud turns
+are counted since #229, except a heal relaunch (`via: "heal"`, **Launch
+retries / heals**), which still goes through `@cursor/sdk` and is not.
 
 Cost that never reaches a host is not attributable this way: the launch
 heal's SDK agents (above), and a turn that fails (July reports no usage on
@@ -400,9 +393,11 @@ cancels the run outright (`docs/factory-deployment.md`, "Losing the session
 lease aborts the cloud run"). Neither is fixable in factory config.
 
 Not used: `cursor_cost_usage_USD_total` (gone after July 0.2.20; historical
-series only), `cursor_model_name` (0.2.22 no longer stamps it on new turns),
-`cursor_token_type="cache_creation"` (never reported), and
-`agent_sdk_subagent_count_total` (no slug uses subagents).
+series only), `cursor_model_name` (0.2.24 still does not stamp it on new turns: no `cursor.model.name` in `dist/internal/otel/`),
+`cursor_token_type="cache_creation"` (July's collector adds it only for a
+non-zero cache write; no panel reads it, and whether the factory's models
+ever report one is not verified), and `agent_sdk_subagent_count_total` (no
+slug uses subagents).
 
 **Loki.** Stream labels `service_name`, `service_namespace`. July's session
 events (`message.received`, `turn.completed`, `turn.failed`,
@@ -471,14 +466,20 @@ event panels, the ticket journey and the tag toggle against it.
 ## How the numbers are computed
 
 **Counters: `counter_inc`, not `increase()` or `rate()`.** Metric temporality
-is cumulative: the factory registers its own global MeterProvider before July
-starts (`agent/lib/factory-otel-signals.ts`, `OTLPMetricExporter` with
+is cumulative, and has to be. July builds its own metric exporters DELTA
+(`node_modules/@cursor/july/dist/internal/otel/runtime.js:181`, no knob), and
+Grafana Cloud's OTLP gateway answers a DELTA sum with HTTP 400 (`invalid
+temporality and type combination`; measured 2026-10-14, where a CUMULATIVE sum
+with the same header was stored), so none of July's own metrics would ever
+reach Mimir. The factory registers one global MeterProvider before July
+starts (`agent/lib/factory-metrics.ts`, `OTLPMetricExporter` with
 `temporalityPreference` CUMULATIVE), July reuses it for every `agent_sdk_*` and
-`cursor_*` instrument, and its own delta provider is never used on these
-hosts; stored samples confirm it (a series repeats one cumulative value, e.g.
+`cursor_*` instrument because no `defineOtel` exporter names metrics, and its
+own delta provider is never built; stored samples confirm it (a series repeats
+one cumulative value, e.g.
 `cursor_token_usage_total{service_name="factory-desk",cursor_token_type="input"}`
-= 11965 for 129 consecutive samples). Every signal
-carries a per-VM `service.instance.id`, and hosted VMs are short-lived: on
+= 11965 for 129 consecutive samples). Every export
+carries a `service.instance.id` drawn once per process life, and hosted VMs are short-lived: on
 2026-10-03 one hour had 45 `apj_factory_delivery_total` series for 52
 deliveries. A cumulative series that is born at N is invisible to
 `increase()` and `rate()` (they read 7.5 deliveries that hour, and 0 of 4
@@ -625,28 +626,37 @@ connects the rest, so an idle range shows "none". The last point starts within o
 (the step is `$bucket`; Prometheus widens it on long ranges) and covers
 the in-progress bucket. Quote the range stat, not the line's last value.
 
-**Prometheus counts are approximate.** They are off in one direction before
-#215 and can be off in either after it:
+**Prometheus counts are approximate.** They can be off in either direction
+wherever a restore shares or carries state:
 
-- **Before #215: low.** The 2026-10-03 coverage audit found hosted restores
+- **Shared id: low.** The 2026-10-03 coverage audit found hosted restores
   reusing one `service.instance.id` across separate requests. A VM restored
   from a snapshot taken after its id was drawn writes the same series again,
   starting from the snapshot's value, so the earlier life's increments are
   lost. One desk VM's input tokens decompose exactly into two lives, and the
   metric kept only the second (49% short of the `turn.completed` logs).
-- **With #215: possibly high.** #215 (on main) draws `service.instance.id`
-  once per life after a restore, which stops that loss. But a restored life's
-  new series starts at the snapshot's totals, not at zero
-  (`factory-otel.ts` `wakeInstanceId`; `docs/factory-deployment.md`,
-  "Cumulative counters from a restored snapshot can still rewind"), and
+- **One id per process life, no rebase.** The factory draws
+  `service.instance.id` at the first export with the header set (a deploy
+  snapshot is taken before any secret binds, so none is in it), from a fresh
+  kernel read with the clocks and pid (`factory-metrics.ts` `lifeId`), and
+  there is no per-life rebase (earlier versions subtracted the old life's
+  totals, `factory-otel-rebase.ts`, removed). A new life's series therefore
+  starts at that life's own totals, which is what `counter_inc` assumes,
+  because no instrument records a value before the first request: nothing is
+  touched at startup, and the funnel's bind adds 0
+  (`factory-metrics.test.ts`: a flush at startup sends nothing). If a restore
+  ever did carry nonzero totals, the new life would be overstated by them, and
   `counter_inc` counts a series born inside the window from zero (the "max
-  alone" branch). Each restored life is then overstated by the snapshot's
-  totals. A `promtool` run: life 1 grows from 1 to 10, the restored life
-  starts at 10 and grows to 12; the true count is 12 and the query returns 22.
+  alone" branch): a `promtool` run, life 1 growing from 1 to 10 and a
+  restored life starting at 10 and growing to 12, returns 22 for a true 12.
+- **What is lost.** A pod frozen or replaced before its next 10 s export loses
+  that interval: July's flush covers only the providers July built, so the
+  factory's meter provider is flushed by its own timer only
+  (`factory-metrics.ts`).
 
 PromQL cannot tell a restored life from a fresh VM first exported at N, so
-no query can correct either error. The dashboard and panel descriptions
-say why the counts are approximate, and Factory ops carries Loki
+no query can correct what a restore carries. The dashboard and panel
+descriptions say why the counts are approximate, and Factory ops carries Loki
 cross-checks (Debug: deliveries by kind and outcome), which
 neither error touches and which are the reference: distinct `deliveryId` values (July's `[bdk]` admission
 lines and the factory lines that carry one), per slug and per `eventType`,
@@ -662,7 +672,7 @@ series, and no query uses `sum_over_time` on a counter.
 - **If a host ever exports DELTA**, its samples are increments: count them
   with `sum_over_time(series[window])` instead of `counter_inc`.
 - **If one `service.instance.id` ever outlives a process** (a host that
-  keeps one id across restarts; #215 instead draws one per life), one series
+  keeps one id across restarts; the factory draws one per life), one series
   spans several processes, and a restart resets its cumulative value inside
   the window. `counter_inc` therefore counts a
   `_total` counter with `resets() > 0` in the window, or `min_over_time`
@@ -738,15 +748,17 @@ handler up to its reply; target under 3 s, red at 10 s); background work,
 reminders and launches run seconds to minutes and are split out under
 Latency. Quantiles interpolate inside histogram buckets, so at low volume a
 p95 reads as "at most that bucket's edge". The
-factory now sets explicit buckets for `apj_factory.delivery.duration` (50 ms
-to 300 s, `DELIVERY_DURATION_BUCKETS_MS` in `agent/lib/factory-otel.ts`)
-and, by injecting histogram advice from the host MeterProvider, for
-`agent_sdk.hosted_execution.duration_ms` (100 ms to 30 min,
-`HOSTED_EXECUTION_DURATION_BUCKETS_MS`; July sets no advice, so the OTel
-default of 16 buckets topping at 10 s put every real turn in `+Inf`). A
-second matching View would not export a second stream: it would record
-each sample twice into one stream. Until every slug is redeployed, VMs
-on the old OTel default buckets (top edge 10 s) are mixed in. Changing
+factory sets explicit buckets for `apj_factory.delivery.duration` (50 ms
+to 300 s, `DELIVERY_DURATION_BUCKETS_MS` in `agent/lib/factory-otel.ts`) as
+histogram advice at creation, and, through the one View in
+`agent/lib/factory-metrics.ts`, for `agent_sdk.hosted_execution.duration_ms`
+(100 ms to 30 min, `HOSTED_EXECUTION_DURATION_BUCKETS_MS`; July sets no advice,
+so the OTel default of 16 buckets topping at 10 s put every real turn in
+`+Inf`). The Exec p95 line and the Exec duration heatmap read those bounds.
+That histogram is the only View: a second matching View would not export a
+second stream, it would record each sample twice into one stream. Series exported by a VM that predates
+the explicit buckets (the OTel default, top edge 10 s) keep that layout
+until they age out of the look-back. Changing
 `le` values mints new series; `histogram_quantile` over a window that
 mixes both layouts is invalid. `_sum` / `_count` keep their names but
 are already unused (two-writer noise). An OTLP exponential histogram
@@ -755,17 +767,17 @@ the existing panel would stay empty.
 
 **Tokens.** July's collector adds `cursor.token.usage` once per type from the
 hosted runtime's usage, which July passes through unchanged from
-`@cursor/sdk` (July 0.2.18 `dist/internal/sdk-runner.js:764-774`, summed per
-step in `event-mapper.js:645-660`).
+`@cursor/sdk` (July 0.2.24 `dist/internal/sdk-runner.js:779-795`, summed per step in
+`event-mapper.js:146-147`).
 
 - **Two input shapes.** `input` on `cursor_token_usage_total` means two
   things, and no label on the metric says which (July's metrics are not
   ours to change):
   - A **host (local) turn** (desk, triage, the planner before #227)
     reports provider-gross input: cache reads are inside it. July's
-    `toCatalogDisjointUsage` (0.2.14 `dist/internal/turn-cost.js:11-37`,
-    0.2.18 `:11-38`) treats OpenAI-compatible usage (Grok, xAI, GPT,
-    o-series) that way and sends `input − cache` before pricing. Live
+    `toCatalogDisjointUsage` (0.2.24 `dist/internal/estimate-cost.js:30-35`; it
+    was `turn-cost.js` in 0.2.18) treats OpenAI-compatible usage (Grok,
+    xAI, GPT, o-series) that way and sends `input − cache` before pricing. Live
     `agent_sdk.turn` spans on 2026-10-03 agree (input 40,818 with cache
     read 38,336; input 26,970 with cache read 18,176; cache read never
     above input, up to 94% of it), as do TLSSN-59's planner turn (input
@@ -777,9 +789,10 @@ step in `event-mapper.js:645-660`).
     29,543, and July billed it 1.127171 USD.
 
   So uncached input is decided **per series, before any sum**, with the
-  test July itself applies in `toCatalogDisjointUsage` (0.2.18
-  `turn-cost.js:27-37`: when `inputTokens < cacheRead + cacheWrite` the
-  usage is already disjoint, otherwise subtract): pair each `input`
+  test July itself applies in `toCatalogDisjointUsage` (0.2.24
+  `estimate-cost.js:35`: when `inputTokens < cacheRead + cacheWrite` the usage
+  is already disjoint, otherwise subtract; July applies it to OpenAI-compatible
+  models only, the dashboards to every series): pair each `input`
   series with the `cache_read` series of the same labels but
   `cursor_token_type` (`sum without (cursor_token_type)` on each, then
   one-to-one matching), and
@@ -802,13 +815,14 @@ step in `event-mapper.js:645-660`).
   1.595660 the old way and 2.356548 per series: planner 2.295848 + desk
   0.060700). Residual risks, accepted: a cloud-shaped series whose input
   happens to be ≥ its cache reads is read as gross and undercounted by
-  its cache reads; one (pod, ticket) series that mixes local and cloud
-  turns is classified as a whole. The panels remain estimates priced with
+  its cache reads; one (process life, session, ticket) series that mixes local and cloud
+  turns is classified as a whole (July labels every sample with the session
+  id, so the pairing is per session). The panels remain estimates priced with
   the `$price_*` variables.
-- **Reasoning is inside output.** `@cursor/sdk` (1.0.32, which July 0.2.14
-  pins, 1.0.35 which 0.2.18 pinned, and 1.0.37 which 0.2.22 pins) documents `TokenUsage` as
+- **Reasoning is inside output.** `@cursor/sdk` 1.0.37 (the version July
+  0.2.24 pins) documents `TokenUsage` as
   "`totalTokens` excludes `reasoningTokens` (a subset of output)"
-  (`dist/esm/usage-types.d.ts:41` in both),
+  (`dist/esm/usage-types.d.ts:41`),
   and the live turn with reasoning 340 had output 519. So reasoning is shown
   but never added and has no price of its own.
 
@@ -827,8 +841,8 @@ otherwise show NaN), floored at 0: the gross rule only,
 since a Grafana transform has no per-row branch, so a cloud turn's row
 reads 0 there and its description says so.
 
-**Cost estimate.** No reliable cost or model reaches Grafana (a July bug, under
-Known gaps), so cost is an estimate (USD per 1M tokens from the dashboard's price
+**Cost estimate.** July 0.2.24 emits no cost metric and no model label (Known
+gaps), so cost is an estimate (USD per 1M tokens from the dashboard's price
 variables):
 
 ```text
@@ -1064,49 +1078,31 @@ avg((sum by (factory_ticket_key) (label_replace(sum by (factory_ticket_key) (sum
 
 </details>
 
-**Cardinality.** The factory's MeterProvider caps every instrument at
-`METRIC_CARDINALITY_LIMIT` = 500 attribute sets (`factory-otel-signals.ts`).
-The SDK (`@opentelemetry/sdk-metrics` 2.x, `DeltaMetricProcessor.record`)
-applies that cap to the distinct attribute sets recorded within one export
-interval (10 s, `METRIC_INTERVAL_MS`): the 500th and later distinct sets
-recorded in the same interval are added to one series labelled only
-`otel_metric_overflow="true"` (the SDK keeps 499 regular sets and the
-overflow one), and the interval's storage is emptied at
-each export, so a life may hold far more than 500 series over time
-(`factory-otel.ticket.test.ts` records 800 tickets over two intervals with
-no overflow, then 600 in one and gets 499 plus the overflow series). Per
+**Cardinality.** The factory's MeterProvider has no label allowlist, so every
+attribute set July records is a series, and July labels each sample with the
+session and conversation id and the session's tag bag. The SDK's default limit
+applies, 2000 attribute sets per instrument per process life under a cumulative
+reader (the 2000th and later sets are added to one series labelled only
+`otel_metric_overflow="true"`). A hosted process serves few sessions, and the
+panels sum over those labels, so the dashboards are right either way; the cost
+is series in Mimir, about sessions × ticket × type, per process life. Per
 instrument:
 
-| Instrument | Series per ticket | Per host life (what Prometheus holds, and what #223's rebaser keys on) | Per 10 s interval (what the cap sees) |
-| --- | --- | --- | --- |
-| `cursor_token_usage_total` | one per token type the ticket's turns reported: `input` and `output` always, `cache_read` when the model cached, `reasoning` when it reports reasoning, so 2 to 4 (`cache_creation` is never reported); the four fixed values make `none` and `other` the same size | 4 × (tickets the life worked on + 2). A life is one `service.instance.id` (#215 draws one per hosted VM; VMs are replaced hourly or so): a day's worth, 50 tickets on one host, is about 200 series, 25 tickets about 100. Before the label: 4 | the (ticket, type) sets of the turns that completed in those 10 s: 4 per completing ticket. The SDK keeps 499 distinct sets per interval, so overflow needs 125 or more distinct tickets completing a turn on one host inside 10 s (124 × 4 = 496 fits); one host runs a handful of turns at a time |
-| `cursor_cost_usage_USD_total` | gone after 0.2.20: July no longer creates this counter. Historical series may remain in Prometheus; the dashboards do not read them | — | — |
-| `agent_sdk_turn_count_total` | one per `agent_sdk_turn_status` the ticket's turns ended with: July 0.2.18 emits exactly `completed`, `failed`, `usage_limit`, `unpaid_invoice` (`collector.js`, `expected-delivery-failure.js`), so 1 to about 4 | about 2 × (tickets + 2): 50 tickets about 100 series. Before the label: a handful | 1 to 4 per ticket whose turn ended in those 10 s; overflow needs 125 or more tickets ending a turn inside 10 s (125 × 4 = 500 overflows) |
-| `apj_factory_ticket_merged_total` | 1 (one count, once) | merged tickets in the life + `other`: a few a day, worker only | the tickets moved to Done in those 10 s: 1 each |
-| `cursor_tool_calls_total` | none: the label is dropped | one per (tool, kind, status), as before the label: some 20 tools × 2 statuses, 40 to 60 series, whatever the ticket count. With the label it would have been 40 to 60 per ticket, past the cap at some 10 to 12 distinct tickets in one 10 s interval (and some 500 series per life at 10 tickets, uncapped: the cap is per interval); this is why it is dropped | as before |
-| `apj_factory_kv_failure_total`, `apj_factory_delivery*`, `agent_sdk_hosted_execution_*`, every other instrument | none: the label is dropped | as before the label | as before |
+| Instrument | Series per session | Note |
+| --- | --- | --- |
+| `cursor_token_usage_total` | 2 to 4 token types (`input` and `output` always, `cache_read` when the model cached, `reasoning` when it reports reasoning) | the cost panels sum these |
+| `agent_sdk_turn_count_total` | one per `agent_sdk_turn_status` (`completed`, `failed`, `usage_limit`, `unpaid_invoice`) | the turn panels |
+| `cursor_tool_calls_total` | one per (tool, kind, status): some 20 tools × 2 statuses, 40 to 60 | the largest family: the 2000 limit is reached by some 35 to 50 sessions in one process life |
+| `apj_factory_ticket_merged_total` | 1 per ticket (no session id: the factory's own counter) | the worker only |
+| `apj_factory_delivery*`, `agent_sdk_hosted_execution_*`, `agent_sdk_http_duration_*` | the factory's and July's own label sets; July's add the session id where it stamps it | the latency and volume panels |
 
-So the cap stays at 500. It is not raised: with the label on the three
-live instruments above (`cursor_token_usage_total`, `agent_sdk_turn_count_total`,
-`apj_factory_ticket_merged_total`; `cursor_cost_usage_USD_total` is gone), each of them stays under 200 series in a day's life on
-one host and far under the cap in any 10 s interval, and the cap is what
-keeps a bug upstream (a label that is not a Jira key, which `ticketLabel`
-already folds to `other`) from minting a series per request. Raising it
-would be justified only if a host were measured completing turns for more
-than about 125 distinct tickets inside 10 s, which no host does (one host
-runs a handful of turns at a time). If a host ever does overflow, the
-tokens of the turns that did are in
-`cursor_token_usage_total{otel_metric_overflow="true"}` (likewise
-`agent_sdk_turn_count_total{otel_metric_overflow="true"}`) with no ticket,
-no type, and no agent: a `sum` over every key still reconciles with the
-per-slug figure, the per-ticket table lacks those turns, and `none` does
-not grow (the overflow series is not `none`). Query those selectors to
-check; they should be empty.
-
-The label is exported by hosts deployed from this change on; a `sum by
-(factory_ticket_key)` over `cursor_token_usage_total` puts samples from
-before it, and from any host not yet redeployed, in an unlabelled row (a
-turn on a redeployed host always has the label, `none` at least).
+If `cursor_token_usage_total{otel_metric_overflow="true"}` (or any other
+instrument's) is ever non-empty, a process life passed the limit: its tokens
+are in that series with no ticket, no type and no agent, a `sum` over every key
+still reconciles with the per-slug figure, and the per-ticket table lacks those
+turns. That is the signal to add a short attribute allowlist View to
+`factory-metrics.ts`. Query those selectors after a deploy; they should be
+empty.
 
 **Links.** Jira and dashboard links are field data links on the ticket
 column, and only when the cell has a value (empty, `nil` and `-` stay
@@ -1352,7 +1348,7 @@ labelled approximate.
   factory-planner and factory-security-reviewer emitted
   `cursor_token_usage_total`. Prometheus only, so it reads at 6h, 24h, 7d
   and 30d (Tempo metrics stop at 25h); the cost side is counter-based and
-  can read high after an instance-id change (see Known gaps).
+  can be off after a restore that carries state (see Known gaps).
 
 **Colours.** #219's `PALETTE` colours every slug, outcome, level and token
 series (Okabe-Ito slugs, no red or orange; calm is the text colour, never a
@@ -1417,7 +1413,7 @@ and the modelled hours are neutral: they are figures, not alarms.
   on the token and turn counters gives each keyed ticket its own cost
   (**Cost and tokens per ticket**, **Cost per ticket (est.)**); the
   worker's cloud build agent is not counted by July, and the counter
-  caveats (instance-id carry-over) apply. **Cost / filed (est.)** and
+  caveats (restores that carry state) apply. **Cost / filed (est.)** and
   **Cost / merged (est.)** stay ratios of range totals.
 - **The announce counter undercounts** (see "Why Tempo, not the delivery
   counter"): a host background flush bug, reported separately. The announce
@@ -1436,29 +1432,36 @@ and the modelled hours are neutral: they are figures, not alarms.
   `displayNameFromDS` legend behind `filterFieldsByName` on Cost / filed):
   run `verify.py` and `tools/load_smoke.mjs` against the stack after the
   first apply.
-- **Counters read high after a host changes instance id.** The hosts keep
-  cumulative counters in one MeterProvider; when a host rotates
-  `service.instance.id`, the new series starts at the carried-over totals
-  and is counted again (`COUNT_CAVEAT`). Example: factory-desk turns read 16
-  in Prometheus against 12 in Loki in 2026-10-03 data. A host-side fix is in
-  progress, so no query compensates. Cost per ticket (est.), the Cost / …
-  (est.) tiles, the per-ticket cost table and the delivery tables under
-  Debug say so in their descriptions (`RESTART_OVERCOUNT`); ratios of two
-  counters say they can be off either way. Loki and Tempo are the reference.
-
-- **No USD cost metric after July 0.2.20.** 0.2.22's collector no longer
-  increments `cursor.cost.usage` and no longer stamps `agent_sdk.cost_usd` /
+- **Known loss: the last interval of a destroyed pod.** There is no turn-end
+  flush: July's flush covers only the providers it built, and the factory's
+  meter provider exports on its own 10 s timer. A pod destroyed within 10 s of
+  its last turn loses that interval's metrics, so cost per ticket (tokens by
+  `factory_ticket_key`) can undercount. Loki and Tempo are not affected.
+- **Counters can be off after a restore that carries state.** The hosts keep
+  cumulative counters in one MeterProvider (`factory-metrics.ts`) and draw one
+  `service.instance.id` per process life; there is no rebase. Two lives that
+  share an id, a restore that carries nonzero totals, a failed export, and a
+  pod frozen before its next 10 s export are not repaired (`COUNT_CAVEAT`; the
+  section "Prometheus counts are approximate" above). No query compensates.
+  Cost per ticket (est.), the Cost / … (est.) tiles, the per-ticket cost table
+  and the delivery tables under Debug say so in their descriptions
+  (`RESTART_OVERCOUNT`); ratios of two counters say they can be off either way.
+  Loki and Tempo are the reference.
+- **No USD cost metric after July 0.2.20.** 0.2.24's collector does not
+  increment `cursor.cost.usage` and does not stamp `agent_sdk.cost_usd` /
   `cursor.model.name` on new turns. Historical `cursor_cost_usage_USD_total`
   series may remain in Prometheus; no panel reads them. Spend is tokens ×
-  `$price_*` by design (`generate.py` `estimate()`).
-  ([`docs/july-otel-upstream.md`](../../docs/july-otel-upstream.md)).
-  The cost on these dashboards is the labelled token-based estimate above.
+  `$price_*` by design (`generate.py` `estimate()`); see
+  [`docs/july-otel-upstream.md`](../../docs/july-otel-upstream.md).
 - **`factory.*` spans reach Tempo from all six services** (#215, deployed).
   Each is a sampled root of its own trace, with a span link to the inbound
   `agent_sdk.http` context. The factory-span tables search them directly
   and are empty when no factory work ran in range (or the selected slug /
   ticket has none). July's `agent_sdk.http` is still recorded only when
-  Cursor's backend sampled the inbound request.
+  Cursor's backend sampled the inbound request. In 0.2.24 it is also not
+  started for the first request of each process life
+  (`dist/internal/otel/http.js:31-35`;
+  [`docs/july-otel-upstream.md`](../../docs/july-otel-upstream.md)).
 - **Outcomes besides `ok` and `error`.** `traceFactory` reads a span's
   notes and `describe()` while the span is recording. #215 records every
   factory span, so skipped / ignored / not_posted and the rest appear on
@@ -1472,17 +1475,16 @@ and the modelled hours are neutral: they are figures, not alarms.
   baseline is not a row. No slug uses subagents, so there is no subagent
   panel.
 - **Short-lived per-VM series**, which is why `counter_inc` exists (above).
-- **Hosted-execution and reminder labels reach Prometheus.**
-  `METRIC_ATTRIBUTE_KEYS` keeps `phase`, `channel_kind`,
-  `delivery_surface` and `outcome` on hosted-execution metrics, and `kind`
-  and `purpose` on reminder fires. Hosted execution p95 is `phase="total"`
-  (the whole execution); "hosted executions" counts executions, not visible
-  replies.
-- **Tempo search returns the newest matches, not the slowest,** so every
-  span table is "newest 50"; sort the Duration column yourself.
-- **Loki first-bar and last-bar edges.** LogQL has no subquery, so a Loki
-  bar cannot be capped at `$__to` and the first bar can miss up to one
-  step. That is a known gap, not a PromQL bug.
+- **Hosted-execution and reminder labels reach Prometheus.** July's own
+  labels `phase`, `channel_kind`, `delivery_surface` and `outcome` are on
+  hosted-execution metrics, and `kind`, `reason` and `purpose` on reminder
+  fires, with whatever values July sets (no allowlist now). Hosted execution p95 is `phase="total"` (the whole
+  execution); "hosted executions" counts executions, not visible replies.
+- **Tempo search returns the newest matches, not the slowest,** so every span
+  table is "newest 50"; sort the Duration column yourself.
+- **Loki first-bar and last-bar edges.** LogQL has no subquery, so a Loki bar
+  cannot be capped at `$__to` and the first bar can miss up to one step. That
+  is a known gap, not a PromQL bug.
 - **promtool / Loki factory tests skip in repo CI.**
   `scripts/grafana-dashboards.test.mjs` auto-detects `PROMTOOL` and a
   loopback Loki; without them those cases skip. They are not in the repo
