@@ -47,7 +47,7 @@ the PR yourself" and writes nothing to GitHub.
 
 ## How it runs
 
-Hosted v2. `@cursor/july` `0.2.22` exactly
+Hosted v2. `@cursor/july` `0.2.24` exactly
 (`pr-autofixer/package.json`).
 Chat stays local. Work runs on a cloud VM
 (`cloud: { env: { type: "cloud" }, autoCreatePR: false }` in
@@ -90,9 +90,11 @@ outside that list fails the delivery (the list is what is wrong).
 
 ## Telemetry
 
-Same factory providers and session flush as the other five hosts
-(`pr-autofixer/agent/otel.ts`,
-`pr-autofixer/agent/hooks/zz-otel-turn-flush.ts`).
+Same OTel files as the other five hosts (`pr-autofixer/agent/otel.ts`,
+`pr-autofixer/agent/lib/factory-otel.ts`, `pr-autofixer/agent/lib/factory-metrics.ts`,
+`pr-autofixer/agent/lib/console-otel.ts`, held identical by
+`scripts/copies-parity.test.mjs`). July builds the trace and log providers; the
+factory registers one cumulative meter provider.
 Export is off until `OTEL_EXPORTER_OTLP_HEADERS` is set. See the factory
 README OpenTelemetry section.
 
@@ -102,8 +104,8 @@ Folder `pr-autofixer`, slug `factory-pr-autofixer`. From
 ``:
 
 ```bash
-npx -y -p @cursor/july@0.2.22 agent-sdk deploy --ref <full 40-char SHA> --dir pr-autofixer --slug factory-pr-autofixer --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.22 agent-sdk logs --prod --slug factory-pr-autofixer --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir pr-autofixer --slug factory-pr-autofixer --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-pr-autofixer --team <CURSOR_TEAM_ID>
 ```
 
 No Jira rule.
@@ -114,8 +116,8 @@ No Jira rule.
 npm test
 npm run check
 npm run validate
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir .
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir .
 ```
 
 Smoke case: `pr-autofixer/evals/coordinator.eval.ts`

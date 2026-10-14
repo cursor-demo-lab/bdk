@@ -38,10 +38,10 @@ test("the channel override wires the gate into onMessage of the built-in http ch
   assert.equal(await httpOverride.onMessage?.("hello", { auth: null }), "hello");
 });
 
-// Pins on the July 0.2.18 behavior the gate relies on now that agent.ts no
-// longer declares `tools` (the implement turn is a cloud turn, which July
-// refuses on an agent with a tool allowlist). If an upgrade changes either,
-// these fail and the posture must be re-verified.
+// Pins on the July behavior the gate relies on, since agent.ts declares no
+// `tools` (the implement turn is a cloud turn, which July refuses on an agent
+// with a tool allowlist). If an upgrade changes either, these fail and the
+// posture must be re-verified.
 
 test("July pin: a hosted agentsdk.session payload carrying `cloud` is refused before any authored code runs", () => {
   const parsed = parseControlPlaneSessionPayload({ message: "hi", cloud: { autoCreatePR: true } });

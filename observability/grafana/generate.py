@@ -26,7 +26,7 @@ TEMPO = {"type": "tempo", "uid": "grafanacloud-traces"}
 JIRA_BROWSE = "https://example.atlassian.net/browse/"
 PRICES_URL = "https://cursor.com/docs/models-and-pricing"
 PRICES_DATE = "2026-10-03"
-JULY_COST_NOTE = ("July 0.2.20 dropped cursor.cost.usage; 0.2.22 emits no USD cost metric and no model label "
+JULY_COST_NOTE = ("July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label "
                   "on turn.completed. Spend here is always tokens × the price variables, not an invoice and not "
                   "July's old cost counter.")
 BUSINESS_ESTIMATE = ("Spend is a list-price estimate from token counts, not the invoice. Method on Factory ops.")
@@ -123,14 +123,16 @@ PLATFORM_PATHS = ".*/(health|healthz|ready|readyz|live|livez|guest-network|manif
 # window, or the max alone when it had none. It is correct over any window, overlapping or not.
 # Edge: a series whose last sample before the window is older than LOOKBACK is counted from zero
 # (over-counts); only a VM idle for longer than LOOKBACK and then active again would hit that.
-# Temporality is CUMULATIVE (the factory's own global MeterProvider, OTLPMetricExporter
-# temporalityPreference CUMULATIVE; July's DELTA provider is never used). If a host ever exports DELTA,
+# Temporality is CUMULATIVE (the factory's own global MeterProvider in factory-metrics.ts, OTLPMetricExporter
+# temporalityPreference CUMULATIVE; July's DELTA exporters are never built: with no metrics exporter in the
+# defineOtel config July uses the global meter). If a host ever exports DELTA,
 # its samples are increments: count them with sum_over_time(selector[window]) instead of counter_inc.
 # Aggregate only after counter_inc (sum by (service_name, ...) (inc(...))), never before.
-# #215 draws service.instance.id once per life after a restore, so a restored life no longer rewrites the earlier
-# life's series; but its new series starts at the snapshot's totals (factory-otel.ts wakeInstanceId), and the
-# "or max alone" branch counts a series born inside the window from zero. Each restored life is then overstated by
-# the snapshot's totals, and PromQL cannot tell it from a fresh VM first exported at N (COUNT_CAVEAT).
+# The factory draws service.instance.id once per process life (factory-metrics.ts lifeId, at the first export with
+# the header set) and does not rebase, so a restored life's series starts at that life's own totals, the form
+# counter_inc assumes: no instrument records a value before the first request. A restore that carried nonzero totals
+# would be overstated by them, because the "or max alone" branch counts a series born inside the window from zero
+# (COUNT_CAVEAT).
 # A host that kept one service.instance.id across processes would see a restart
 # reset a long-lived counter inside the window. Such a _total series (resets() > 0, or
 # min_over_time below the baseline: a restart on the first sample of the window, which
@@ -777,8 +779,9 @@ def token_series(kind: str, *, window: Window = RANGE, where: tuple[str, ...] = 
 # toCatalogDisjointUsage: inputTokens < cacheRead + cacheWrite is already disjoint, otherwise subtract). Summing
 # first and subtracting after (the form before this) priced a cloud series' input at 0 and netted a gross desk
 # series against a net planner series on the same ticket. Residual risk: a cloud series whose input happens to be
-# >= its cache reads is read as gross and undercounted by its cache reads; one (pod, ticket) series that mixes
-# local and cloud turns is classified as a whole. Still an estimate, priced with the $price_* variables.
+# >= its cache reads is read as gross and undercounted by its cache reads; one (instance, session, ticket) series that mixes
+# local and cloud turns is classified as a whole: July labels every sample with the session id, so the pairing of
+# an input series with its cache_read series is per session. Still an estimate, priced with the $price_* variables.
 def uncached_input(*, window: Window = RANGE, by: str | None = None, where: tuple[str, ...] = (),
                    factory_wide: bool = False):
     """Uncached input summed by `by` (or in total), decided per series: input - cache_read where cache_read <= input
@@ -819,8 +822,9 @@ def estimate(window: Window, *, by: str | None = None, where: tuple[str, ...] = 
 # Cost per ticket (README "Cost per ticket (estimate)"). July's cursor_token_usage_total
 # and agent_sdk_turn_count_total carry factory_ticket_key (on each host that runs model turns, desk, planner,
 # triage, fixer and reviewer, hooks/ticket-key.ts tags the session through July's host.otel.setAttributes; the
-# factory's View keeps the label on those two and on apj_factory_ticket_merged_total, the worker's one count per
-# ticket moved to Done on a merged PR, the worker's only part in this, and drops it everywhere else). No
+# factory's meter provider has no View, so July's tag bag, the label included, is on every sample of the session,
+# cursor_tool_calls_total too; apj_factory_ticket_merged_total is the worker's one count per
+# ticket moved to Done on a merged PR, the worker's only part in this). No
 # dashboard panel reads these yet (#219 and #221 own the dashboards); the README quotes
 # them and scripts/grafana-dashboards.test.mjs checks it does so verbatim, and tools/promtool_ticket_check.py
 # proves them under promtool.
@@ -2067,7 +2071,7 @@ TWO_SHAPES_NOTE = ("Input has two shapes on this metric and no label tells them 
                    "any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read "
                    "<= input (gross), the whole input where cache_read > input (net) or where there is no cache_read "
                    "series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted "
-                   "by them; one pod+ticket series that mixes local and cloud turns is classified as a whole.")
+                   "by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole.")
 ESTIMATE_NOTE = (f"ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from "
                  f"{PRICES_URL}, retrieved {PRICES_DATE}; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, "
                  "reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads "
@@ -2497,10 +2501,13 @@ def recent_tickets():
 # ------------------------------------------------------------------------------------------------
 # v2: cost share and cost per ticket
 # ------------------------------------------------------------------------------------------------
-# The instance-id carry-over in COUNT_CAVEAT is a host bug with a fix in progress; no query compensates for it.
-RESTART_OVERCOUNT = ("Counter-based figures can read high after a host changes its service instance id: the new series "
-                     "starts at the carried-over totals, which are counted again (host fix in progress). Example: "
-                     "factory-desk turns read 16 here against 12 in Loki in 2026-10-03 data. Loki and Tempo are the reference.")
+# No rebase: the factory draws one service.instance.id per process life (factory-metrics.ts); no query compensates for a restore that carries state.
+RESTART_OVERCOUNT = ("Counter-based figures can read high after a host changes its service instance id if the restore "
+                     "carried nonzero totals: the new series starts at them, and they are counted again. The factory "
+                     "draws one id per process life and does not rebase; nothing records a value before the first "
+                     "request, so a new life normally starts at its own increments. Two lives that share an id are "
+                     "not repaired, and a pod frozen before its next 10 s export loses that interval. Loki and Tempo "
+                     "are the reference.")
 BOTH_COUNTERS = "Both sides are counters that can read high, so the ratio can be off either way. "
 
 
@@ -3577,7 +3584,7 @@ def estimate_text_short():
 def estimate_text():
     """Full estimate methodology — shown on Factory ops."""
     return text(Copy(title="Estimate, not billing", desc="How the cost estimate is made, and what it leaves out."),
-                content="July 0.2.20 dropped `cursor.cost.usage`; 0.2.22 emits no USD cost metric and no "
+                content="July 0.2.20 dropped `cursor.cost.usage`; 0.2.24 still emits no USD cost metric and no "
                 "`cursor.model.name` / `agent_sdk.cost_usd` on new turns. Cost here is "
                 f"tokens × the hidden price variables (USD per 1M tokens, [Cursor list prices]({PRICES_URL}), retrieved "
                 f"{PRICES_DATE}), by design, not a workaround for a late estimate. Defaults are Grok 4.6 Fast, the desk's and triage's model: $4 input, $1 cache read, $12 output; "

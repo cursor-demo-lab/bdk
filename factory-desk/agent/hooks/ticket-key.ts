@@ -3,25 +3,26 @@ import { isJiraIssueKey, tagSessionTicket } from "../lib/factory-otel.js";
 import { threadTickets } from "../lib/thread-tickets.js";
 import { threadFromSession } from "../lib/threads.js";
 
-// Puts `factory.ticket.key` on the token and turn samples July records
-// for a desk turn, and on the turn's July spans, so Grafana can price each
-// ticket on its own (factory-otel.ts, "Ticket on token usage": the one
-// approved addition to July's spans; `cursor.tool.calls` and the factory's
-// other metrics drop the label). A desk session is a Slack thread
-// (threads.ts threadFromSession), and the thread's filed tickets are in kv
-// (thread-tickets.ts); the latest one is the turn's ticket. A thread with
-// none yet (the intake chat before `approve file`, a question, a DM with no
-// ticket), or one whose kv read fails, is `none`. The turn that files the
-// ticket starts as `none`; file_ticket itself calls tagSessionTicket the
-// moment createIssue returns the key, before July's collector records that
-// turn's usage on `turn.completed`, so the filing turn's whole cost lands
-// on the new key. approve_ticket, deny_ticket and request_plan tag their
-// input key the same way, on entry. The `action.result` listener below is
-// the second path for the same keys: July's `output` for a server tool is
-// the SDK's MCP text, a JSON string of the tool's return (@cursor/sdk 1.0.35
-// wraps the object as text; July 0.2.18 event-mapper.js describeToolResult
-// hands the text on as a string), so issueKeyOf parses a string before
-// reading `issueKey`. Hooks run before July's collector sees the event.
+// Puts `factory.ticket.key` on the token and turn samples July records for a
+// desk turn, and on the turn's July spans, so Grafana can price each ticket on
+// its own (factory-otel.ts, "Ticket on token usage": the one approved addition
+// to July's spans; the label is on all of July's metrics and spans for the
+// session, `cursor.tool.calls` included: July's `join` stamps the whole tag bag
+// on every sample (dist/internal/otel/collector.js:619-626) and the factory has
+// no metric View). A desk session is a Slack thread (threads.ts
+// threadFromSession), and the thread's filed tickets are in kv
+// (thread-tickets.ts); the latest one is the turn's ticket. A thread with none
+// yet (the intake chat before `approve file`, a question, a DM with no ticket),
+// or one whose kv read fails, is `none`. The turn that files the ticket starts
+// as `none`; file_ticket itself calls tagSessionTicket the moment createIssue
+// returns the key, before July's collector records that turn's usage on
+// `turn.completed`, so the filing turn's whole cost lands on the new key.
+// approve_ticket, deny_ticket and request_plan tag their input key the same way,
+// on entry. The `action.result` listener below is the second path for the same
+// keys: July's `output` for a server tool is the SDK's MCP text, a JSON string
+// of the tool's return (the SDK wraps the object as text and July's
+// describeToolResult hands it on as a string), so issueKeyOf parses a string
+// before reading `issueKey`. Hooks run before July's collector sees the event.
 export default defineHook({
   events: {
     "turn.started": async (_event, ctx) => {

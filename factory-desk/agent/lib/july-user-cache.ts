@@ -1,4 +1,4 @@
-// July 0.2.13 keeps every Slack users.info record, the externality verdict
+// July (still so in 0.2.24) keeps every Slack users.info record, the externality verdict
 // derived from it, and every bots.info name in module maps with no TTL and
 // no size cap (channels/slack/user-info.js, external-policy.js,
 // sender-name.js). A long-lived desk process therefore grows with each new

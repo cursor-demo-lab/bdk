@@ -7,18 +7,21 @@ import { fileURLToPath } from "node:url";
 // The OpenTelemetry packages the six hosts load must be one set, at one
 // version, with one copy of the API.
 //
-// Why. agent/lib/factory-otel-signals.ts builds its own tracer, meter, and
-// logger providers from @opentelemetry/sdk-* and registers the meter and
-// logger globally, ahead of July's startup, so July reuses them. That
-// handover goes through @opentelemetry/api's global slot, keyed by the API's
-// major version and shared only by copies of the API that resolve to one
-// module. A second copy (a nested node_modules/.../@opentelemetry/api, which
-// npm creates when a package's range cannot be met by the top-level one)
-// gets a registry of its own: the factory's spans would stop parenting
-// under July's, the active context would not cross, and a provider
-// registered by one copy would be invisible to the other. The three SDK
-// packages must also be versions July's own copies can interoperate with,
-// so each resolved version has to satisfy the range @cursor/july declares.
+// Why. July builds the tracer and logger providers and registers them
+// globally; the factory registers one meter provider
+// (agent/lib/factory-metrics.ts) because July's DELTA metric exporters are
+// rejected by Grafana Cloud. The factory's spans, counters, and console lines
+// (agent/lib/factory-otel.ts, agent/lib/console-otel.ts) reach all three
+// through @opentelemetry/api and @opentelemetry/api-logs. That handover goes
+// through the API's global slot, keyed by the API's major version and shared
+// only by copies of the API that resolve to one module. A second copy (a
+// nested node_modules/.../@opentelemetry/api, which npm creates when a
+// package's range cannot be met by the top-level one) gets a registry of its
+// own: the meter provider the factory registers would be invisible to July,
+// the factory's spans would stop parenting under July's, and the active
+// context would not cross. The SDK packages the host loads must also be
+// versions July's own copies can interoperate with, so each resolved version
+// has to satisfy the range @cursor/july declares for it.
 //
 // Checked, for every host's package.json and package-lock.json:
 // - the host declares each @opentelemetry package the host's code imports

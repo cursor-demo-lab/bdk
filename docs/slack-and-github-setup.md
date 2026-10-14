@@ -60,7 +60,7 @@ it through the v2 wizard, reinstall when Slack asks for the new scope,
 then redeploy the desk so `reaction_added` becomes a subscription edge:
 
 ```bash
-npx -y -p @cursor/july@0.2.22 agent-sdk slack manifest --dir factory-desk --name Factory --channel-posts --env prod --print
+npx -y -p @cursor/july@0.2.24 agent-sdk slack manifest --dir factory-desk --name Factory --channel-posts --env prod --print
 ```
 
 ### How people use it
@@ -91,14 +91,14 @@ and [`../factory-desk/README.md`](../factory-desk/README.md).
    OAuth & Permissions → Bot Token Scopes lists `reactions:read`, and
    Event Subscriptions → Subscribe to bot events lists `reaction_added`.
    If either is missing, apply the manifest above and reinstall.
-2. `npx -y -p @cursor/july@0.2.22 agent-sdk slack doctor --prefix FACTORY_DESK`
+2. `npx -y -p @cursor/july@0.2.24 agent-sdk slack doctor --prefix FACTORY_DESK`
    with the tokens in your environment: `app_token`, `connections_open`,
    `bot_token`, `auth_test` all green.
 3. `@Factory hello` in `#mars-eng-intake` gets one reply.
 4. React ✅ to a new filing prompt you asked for, then read the session:
 
    ```bash
-   npx -y -p @cursor/july@0.2.22 agent-sdk logs --prod --slug factory-desk --team <CURSOR_TEAM_ID>
+   npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-desk --team <CURSOR_TEAM_ID>
    ```
 
 ### Troubleshooting
@@ -126,15 +126,15 @@ and [`../factory-desk/README.md`](../factory-desk/README.md).
   drops the subscription:
 
   ```bash
-  npx -y -p @cursor/july@0.2.22 agent-sdk deploy --ref <full 40-char SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+  npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
   ```
 
 - Check the subscription on each slug. Both should show
   `watching: cursor-demo-lab/marsbank`:
 
   ```bash
-  npx -y -p @cursor/july@0.2.22 agent-sdk event-repos <slug> --team <CURSOR_TEAM_ID>
-  npx -y -p @cursor/july@0.2.22 agent-sdk deployment <slug> --team <CURSOR_TEAM_ID>
+  npx -y -p @cursor/july@0.2.24 agent-sdk event-repos <slug> --team <CURSOR_TEAM_ID>
+  npx -y -p @cursor/july@0.2.24 agent-sdk deployment <slug> --team <CURSOR_TEAM_ID>
   ```
 
   `agent-sdk event-repos <slug> --repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>`

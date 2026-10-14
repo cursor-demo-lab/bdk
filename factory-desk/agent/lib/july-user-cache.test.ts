@@ -45,10 +45,10 @@ function manualTimer() {
   return { every: (_ms: number, tick: () => void) => (ticks.push(tick), () => void ticks.splice(ticks.indexOf(tick), 1)), fire: () => ticks.forEach((tick) => tick()), ticks };
 }
 
-// Characterizes @cursor/july 0.2.13 (docs/july-users-info-cache.md). When an
+// Characterizes @cursor/july 0.2.24 (docs/july-users-info-cache.md). When an
 // upgrade fails one of these, July has changed its cache and the guard below
 // may be removable.
-test("July 0.2.13 keeps every users.info record and verdict with no expiry", async () => {
+test("July 0.2.24 keeps every users.info record and verdict with no expiry", async () => {
   resetExternalSenderCache();
   const slack = slackDirectory();
   for (let i = 0; i < 50; i++) await isExternalSlackSender({ botToken: slack.transport, slackTeamId: TEAM, userId: `U${i}` });
@@ -62,7 +62,7 @@ test("July 0.2.13 keeps every users.info record and verdict with no expiry", asy
   assert.equal(await isExternalSlackSender({ botToken: slack.transport, slackTeamId: TEAM, userId: "U0" }), true, "only a reset shows the change");
 });
 
-test("July 0.2.13 shares a verdict across token objects, including one that cannot reach Slack", async () => {
+test("July 0.2.24 shares a verdict across token objects, including one that cannot reach Slack", async () => {
   resetExternalSenderCache();
   const slack = slackDirectory();
   await isExternalSlackSender({ botToken: slack.transport, slackTeamId: TEAM, userId: "U0ALICE" });

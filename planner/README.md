@@ -43,7 +43,7 @@ pinned run ends with neither a plan nor needs-info.
 
 ## How it runs
 
-Hosted v2. `@cursor/july` `0.2.22` exactly
+Hosted v2. `@cursor/july` `0.2.24` exactly
 (`planner/package.json`).
 Default model: Auto (`auto-smart`, `optimize_for=balanced`) unless
 `FACTORY_AGENT_*` say otherwise.
@@ -119,9 +119,11 @@ can still start a second session.
 
 ## Telemetry
 
-Same factory providers and session flush as the other five hosts
-(`planner/agent/otel.ts`,
-`planner/agent/hooks/zz-otel-turn-flush.ts`).
+Same OTel files as the other five hosts (`planner/agent/otel.ts`,
+`planner/agent/lib/factory-otel.ts`, `planner/agent/lib/factory-metrics.ts`,
+`planner/agent/lib/console-otel.ts`, held identical by
+`scripts/copies-parity.test.mjs`). July builds the trace and log providers; the
+factory registers one cumulative meter provider.
 `planner/agent/hooks/ticket-key.ts`
 tags the session with the ticket key. Export is off until
 `OTEL_EXPORTER_OTLP_HEADERS` is set. See the factory README
@@ -133,8 +135,8 @@ Folder `planner`, slug `factory-planner`. From
 ``:
 
 ```bash
-npx -y -p @cursor/july@0.2.22 agent-sdk deploy --ref <full 40-char SHA> --dir planner --slug factory-planner --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.22 agent-sdk logs --prod --slug factory-planner --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir planner --slug factory-planner --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-planner --team <CURSOR_TEAM_ID>
 ```
 
 Jira rule `factory-planner` (transitioned to Triaged) POSTs to
@@ -147,9 +149,9 @@ Jira rule `factory-planner` (transitioned to Triaged) POSTs to
 npm test
 npm run check
 npm run validate
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir .
-npx -p @cursor/july@0.2.22 agent-sdk call get_plan --dir . --input '{ "issueKey": "TLSSN-42" }'
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir .
+npx -p @cursor/july@0.2.24 agent-sdk call get_plan --dir . --input '{ "issueKey": "TLSSN-42" }'
 ```
 
 `call`, `eval`, and `serve` need a signed-in host (Jira connection).

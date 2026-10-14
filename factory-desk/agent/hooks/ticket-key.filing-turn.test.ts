@@ -1,32 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Meter } from "@opentelemetry/api";
-import { AggregationTemporality, InMemoryMetricExporter } from "@opentelemetry/sdk-metrics";
+import { AggregationTemporality, InMemoryMetricExporter, MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import type { HostKvApi, HostOtelApi } from "@cursor/july";
 import { TICKET_KEY_ATTRIBUTE } from "../lib/factory-otel.js";
-import { factoryMeterProvider } from "../lib/factory-otel-signals.js";
 import hook from "./ticket-key.js";
 
-// The desk's filing turn, end to end through July 0.2.18's own pieces: the
+// The desk's filing turn, end to end through July's own pieces: the
 // `action.result` a server tool produces (event-mapper.js describeToolResult
 // over the SDK's MCP text result: the tool's object as a JSON STRING, not an
-// object), the hook, the collector, and the factory's meter. Before this
-// test, issueKeyOf read `issueKey` off an object only, so a real
-// file_ticket result never re-tagged the turn and the filing turn's usage
-// stayed `none` until the next turn read the key from kv.
+// object), the hook, the collector, and a plain meter provider. A real
+// file_ticket result must re-tag the turn, or the filing turn's usage stays
+// `none` until the next turn reads the key from kv.
 
 const internal = (file: string) => new URL(`../../node_modules/@cursor/july/dist/internal/${file}`, import.meta.url).href;
 const { describeToolResult } = (await import(internal("event-mapper.js"))) as { describeToolResult: (toolCall: unknown) => { output?: unknown; isError: boolean } };
 const { createOtelCollector } = (await import(internal("otel/collector.js"))) as {
   createOtelCollector: (
-    runtime: { tracer: unknown; meter: Meter; config: { logs: false } },
+    runtime: { tracer: unknown; meter: Meter; config: { enabled: true; logs: false } },
     agentName: string,
     log: (line: string) => void,
   ) => { onEvent(event: Record<string, unknown>, session: Record<string, unknown>): void; close(): void };
 };
 const { createHostOtelApi } = (await import(internal("host-otel.js"))) as {
-  createHostOtelApi: (options: { agentName: string; meter?: Meter; collector?: unknown; sessionId?: string }) => Pick<HostOtelApi, "enabled" | "increment" | "setAttributes">;
+  createHostOtelApi: (options: { agentName: string; meter?: () => Meter | undefined; collector?: unknown; sessionId?: string }) => Pick<HostOtelApi, "enabled" | "increment" | "setAttributes">;
 };
 
 type Handler = (event: { turnId?: string; data: Record<string, unknown> }, ctx: unknown) => Promise<void> | void;
@@ -44,11 +42,10 @@ const FILED = {
 };
 
 /**
- * The `action.result` output July hands a hook for a server tool: the SDK
- * (@cursor/sdk 1.0.35 custom-tool executor) wraps the tool's object as
- * `content: [{ type: "text", text: JSON.stringify(result) }]`, its stream
- * converter keeps `{ content: [{ text: { text } }], isError }`, and July's
- * describeToolResult joins the text parts into one string.
+ * The `action.result` output July hands a hook for a server tool, built here
+ * in the MCP result shape July's describeToolResult reads
+ * (`{ content: [{ text: { text } }], isError }`) with the tool's object as
+ * the JSON text; describeToolResult joins the text parts into one string.
  */
 function julyOutputFor(result: unknown): unknown {
   const described = describeToolResult({
@@ -64,17 +61,17 @@ test("the filing turn: July's string output of file_ticket re-tags the turn, and
   const spans = new InMemorySpanExporter();
   const tracerProvider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(spans)] });
   const metricExporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
-  const meterProvider = factoryMeterProvider(metricExporter);
+  const meterProvider = new MeterProvider({ readers: [new PeriodicExportingMetricReader({ exporter: metricExporter, exportIntervalMillis: 3_600_000 })] });
   const meter = meterProvider.getMeter("agent_sdk");
   const julyLog: string[] = [];
-  const collector = createOtelCollector({ tracer: tracerProvider.getTracer("agent_sdk"), meter, config: { logs: false } }, "factory-desk", (line) => julyLog.push(line));
+  const collector = createOtelCollector({ tracer: tracerProvider.getTracer("agent_sdk"), meter, config: { enabled: true, logs: false } }, "factory-desk", (line) => julyLog.push(line));
   const sessionId = "ses_filing";
   const turnId = "trn_filing";
   const session = { id: sessionId, channelId: "slack", mode: "chat", purpose: "live", auth: null };
   const at = new Date().toISOString();
   try {
     const kv: HostKvApi = { get: async () => undefined as never, put: async () => undefined, delete: async () => undefined };
-    const otel = createHostOtelApi({ agentName: "factory-desk", meter, collector, sessionId });
+    const otel = createHostOtelApi({ agentName: "factory-desk", meter: () => meter, collector, sessionId });
     const ctx = { session: { id: sessionId, channelId: "slack", auth: { attributes: { channel_id: THREAD.channelId, thread_ts: THREAD.threadTs } } }, channel: { id: "slack", continuationToken: null }, host: { kv, otel } };
 
     // July dispatches each event hook-first, then to the collector (session-engine.js dispatchEvent).
@@ -109,11 +106,11 @@ test("the filing turn: July's string output of file_ticket re-tags the turn, and
       ],
       "the filing turn's whole token usage lands on the key filed mid-turn, none of it on `none`",
     );
-    assert.equal(points.some((point) => point.name === "cursor.cost.usage"), false, "0.2.22 collector no longer increments cursor.cost.usage");
+    assert.equal(points.some((point) => point.name === "cursor.cost.usage"), false, "the 0.2.24 collector creates no cost counter (otel/collector.js:701-718)");
     assert.deepEqual(byKey("agent_sdk.turn.count"), [["TLSSN-46", 1]]);
     assert.equal(points.some((point) => point.attributes[TICKET_KEY_ATTRIBUTE] === "none"), false, "no sample of the turn is `none`");
     for (const point of points.filter((point) => point.name === "cursor.tool.calls")) {
-      assert.equal(TICKET_KEY_ATTRIBUTE in point.attributes, false, "cursor.tool.calls keeps no ticket label");
+      assert.equal(point.attributes[TICKET_KEY_ATTRIBUTE], "TLSSN-46", "with no View, July's tool counter carries the session's ticket tag too");
     }
 
     const finished = spans.getFinishedSpans();

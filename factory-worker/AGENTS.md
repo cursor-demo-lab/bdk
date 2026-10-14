@@ -8,9 +8,9 @@ Design and the factory it belongs to: `../docs/event-driven-factory.md`
 ## Loop
 
 ```bash
-npx -p @cursor/july@0.2.22 agent-sdk validate --dir .
-npx -p @cursor/july@0.2.22 agent-sdk info --dir . --json
-npx -p @cursor/july@0.2.22 agent-sdk serve --dir . --mode single --dev
+npx -p @cursor/july@0.2.24 agent-sdk validate --dir .
+npx -p @cursor/july@0.2.24 agent-sdk info --dir . --json
+npx -p @cursor/july@0.2.24 agent-sdk serve --dir . --mode single --dev
 node ../scripts/replay-jira-transition.mjs http://127.0.0.1:3000/v1/channels/jira/ TLSSN-42 Approved
 npm run check && npm test
 ```
@@ -46,7 +46,7 @@ the SDK launch used, and the session is the attribution unit: its
 `cursor.token.usage`, `agent_sdk.turn.count` and
 turn spans carry `factory.ticket.key` (`agent/hooks/ticket-key.ts` reads the
 key out of the continuation token on `turn.started`; any other session is
-`none`). Why it is shaped this way, each checked in `@cursor/july@0.2.22`
+`none`). Why it is shaped this way, each checked in `@cursor/july@0.2.24`
 `dist/`:
 
 - Hosted admission honors one `send()` per delivery (`hosted-delivery.js`
@@ -488,12 +488,14 @@ key out of the continuation token on `turn.started`; any other session is
 - Reach Jira any way but `host-connections/tracker.ts`. No `*.atlassian.net`.
 - Add npm deps. `@cursor/sdk` is pinned to the version `@cursor/july` ships.
   The `@opentelemetry/*` packages are July's own, pinned to the versions it
-  installs; `context-async-hooks` is a runtime dependency since the factory
-  registers the context manager itself.
+  installs. Runtime code needs `@opentelemetry/api`, `@opentelemetry/api-logs`, and
+  the metrics SDK packages `lib/factory-metrics.ts` uses (`core`, `resources`,
+  `sdk-metrics`, `exporter-metrics-otlp-proto`); the trace and log SDK packages
+  are devDependencies for tests.
 
 ## Pointers
 
 - Package loop: `node_modules/@cursor/july/AGENTS.md`
 - Skills: `node_modules/@cursor/july/skills/` (`create-agent`, `deploy`, `evals`, `hillclimb`, `debug`)
-- Docs: `npx -p @cursor/july@0.2.22 agent-sdk docs`
+- Docs: `npx -p @cursor/july@0.2.24 agent-sdk docs`
 - LLM docs index: `node_modules/@cursor/july/dist/docs/llms.txt`

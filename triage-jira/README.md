@@ -43,7 +43,7 @@ planner; the Triaged move is the event the planner wakes on.
 
 ## How it runs
 
-Hosted v2. `@cursor/july` `0.2.22` exactly
+Hosted v2. `@cursor/july` `0.2.24` exactly
 (`triage-jira/package.json`).
 Turns are local. The only model turn is the fallback when Jev does not
 settle the ticket: `grok-4.6` with `effort=high`, `fast=true`
@@ -80,9 +80,11 @@ so `record_triage` calls the planner inline. Leave unset when hosted.
 
 ## Telemetry
 
-Same factory providers and session flush as the other five hosts
-(`triage-jira/agent/otel.ts`,
-`triage-jira/agent/hooks/zz-otel-turn-flush.ts`).
+Same OTel files as the other five hosts (`triage-jira/agent/otel.ts`,
+`triage-jira/agent/lib/factory-otel.ts`, `triage-jira/agent/lib/factory-metrics.ts`,
+`triage-jira/agent/lib/console-otel.ts`, held identical by
+`scripts/copies-parity.test.mjs`). July builds the trace and log providers; the
+factory registers one cumulative meter provider.
 Export is off until `OTEL_EXPORTER_OTLP_HEADERS` is set. See the factory
 README OpenTelemetry section.
 
@@ -92,8 +94,8 @@ Folder `triage-jira`, slug `factory-triage-jira`. From
 ``:
 
 ```bash
-npx -y -p @cursor/july@0.2.22 agent-sdk deploy --ref <full 40-char SHA> --dir triage-jira --slug factory-triage-jira --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.22 agent-sdk logs --prod --slug factory-triage-jira --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir triage-jira --slug factory-triage-jira --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-triage-jira --team <CURSOR_TEAM_ID>
 ```
 
 Jira rule `factory-triage-jira` (Work item created) POSTs to
@@ -106,8 +108,8 @@ Jira rule `factory-triage-jira` (Work item created) POSTs to
 npm test
 npm run check
 npm run validate
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.22 agent-sdk eval --dir . --tag smoke
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --tag smoke
 ```
 
 Eval sessions skip Jira writes. Cases:

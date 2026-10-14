@@ -4,19 +4,21 @@ import { prRefFromContinuationToken, prRefFromSessionTitle } from "../lib/drive.
 import { tagSessionTicket } from "../lib/factory-otel.js";
 import { prTicketKey } from "../lib/pr-ticket.js";
 
-// Puts `factory.ticket.key` on the token and turn samples July records
-// for a drive turn, and on the turn's July spans, so Grafana can price each
-// ticket on its own (factory-otel.ts, "Ticket on token usage": the one
-// approved addition to July's spans; `cursor.tool.calls` and the factory's
-// other metrics drop the label). A drive is bound to its PR by the session
-// title startDrive gives it (`PR owner/repo#n`), by the `drive` channel's
-// continuation token (`pr:owner/repo#n[@g<k>]`), or, for a drive a GitHub
-// delivery started, by July's channel state, whose head branch names the
-// ticket on a factory PR without a read; any other PR is read once per
-// session, within a budget (lib/pr-ticket.ts). A PR with no key in branch
-// or title, no PR at all (a playground chat, an eval), or a read that is
-// slow or fails is `none`. Hooks run before July's collector sees the
-// event, so the tag is in place when `turn.completed` records the usage.
+// Puts `factory.ticket.key` on the token and turn samples July records for a
+// drive turn, and on the turn's July spans, so Grafana can price each ticket on
+// its own (factory-otel.ts, "Ticket on token usage": the one approved addition
+// to July's spans; the label is on all of July's metrics and spans for the
+// session, `cursor.tool.calls` included: July's `join` stamps the whole tag bag
+// on every sample (dist/internal/otel/collector.js:619-626) and the factory has
+// no metric View). A drive is bound to its PR by the session title startDrive
+// gives it (`PR owner/repo#n`), by the `drive` channel's continuation token
+// (`pr:owner/repo#n[@g<k>]`), or, for a drive a GitHub delivery started, by
+// July's channel state, whose head branch names the ticket on a factory PR
+// without a read; any other PR is read once per session, within a budget
+// (lib/pr-ticket.ts). A PR with no key in branch or title, no PR at all (a
+// playground chat, an eval), or a read that is slow or fails is `none`. Hooks
+// run before July's collector sees the event, so the tag is in place when
+// `turn.completed` records the usage.
 export default defineHook({
   events: {
     "turn.started": async (_event, ctx) => {

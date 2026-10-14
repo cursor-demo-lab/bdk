@@ -351,8 +351,9 @@ test("count caveats say totals can read high after an instance-id change; Loki/T
   assert.match(tokenCheck.description, caveat);
   const readme = readFileSync(join(DIR, "README.md"), "utf8");
   assert.match(readme, /\*\*Prometheus counts are approximate\.\*\*/);
-  assert.match(readme, /\*\*With #215: possibly high\.\*\*/);
-  assert.match(readme, /true count is 12 and the query returns 22/);
+  assert.match(readme, /\*\*One id per process life, no rebase\.\*\*/);
+  assert.match(readme, /invalid\s+temporality and type combination/, "why the metrics are cumulative");
+  assert.match(readme, /returns 22 for a true 12/);
   assert.match(readme, /Grafana 12\.2 OSS does not register `filterFields`/);
   assert.doesNotMatch(readme, /405s 57 vs 41/);
   assert.doesNotMatch(readme, /this loss stops|counts are lower bounds|Counter totals are lower bounds/);
@@ -707,7 +708,7 @@ test("per-ticket cost: the README's expanded queries are the generator's, verbat
   assert.ok((generated.keyed_cost_per_merged_ticket.match(/factory_ticket_key!~"none\|other\|"/g) ?? []).length >= 6, "every numerator selector keeps Jira keys only");
 });
 
-test("per-ticket cost: the README states the design the hosts implement (the label on July's token and turn metrics and spans through July's public API, an approved exception; never on tool calls or kv.failure; kv-outage and budget fallbacks; mean vs keyed; cardinality numbers)", () => {
+test("per-ticket cost: the README states the design the hosts implement (the label on July's token and turn metrics and spans through July's public API, an approved exception; no View; kv-outage and budget fallbacks; mean vs keyed; cardinality)", () => {
   const readme = readFileSync(join(DIR, "README.md"), "utf8");
   // The "Metric | Labels used" table is the first table naming each metric; the cardinality table names them again.
   const rows = {};
@@ -717,16 +718,16 @@ test("per-ticket cost: the README states the design the hosts implement (the lab
     assert.match(rows[labelled], /`factory_ticket_key`/, `${labelled} lists the ticket label`);
     assert.doesNotMatch(rows[labelled], /never `factory_ticket_key`/, labelled);
   }
-  for (const unlabelled of ["cursor_tool_calls_total", "apj_factory_kv_failure_total"]) {
-    assert.ok(rows[unlabelled], `${unlabelled} row`);
-    assert.match(rows[unlabelled], /never `factory_ticket_key`/, `${unlabelled} must say the label is dropped`);
+  for (const stamped of ["cursor_tool_calls_total", "apj_factory_kv_failure_total"]) {
+    assert.ok(rows[stamped], `${stamped} row`);
+    assert.doesNotMatch(rows[stamped], /never `factory_ticket_key`/, `${stamped}: with no View the label is not dropped`);
   }
   assert.equal(rows["apj_factory_ticket_tokens_total"], undefined, "no factory-owned token instrument");
   assert.match(readme, /approved exception to the rule that July's spans leave as\s+July makes them/);
   assert.match(readme, /adds this one attribute,\s+`factory\.ticket\.key`, to July's turn, tool, phase and subagent spans and\s+to July's metrics/);
   assert.match(readme, /only through July's public\s+`setAttributes` \/ `setSessionAttributes` API/);
   assert.match(readme, /Nothing else on July's spans or logs changes/);
-  assert.match(readme, /`TICKET_LABELLED_METRICS`/);
+  assert.doesNotMatch(readme, /`TICKET_LABELLED_METRICS`|metricAttributes/);
   assert.doesNotMatch(readme, /never on July's\s+metrics or spans|Nothing calls `ctx\.host\.otel`|withdrawn so\s+July's spans and metrics stay untouched/);
   const slugRows = Object.fromEntries([...readme.matchAll(/^\| `(factory-desk|planner|triage-jira|pr-autofixer|security-reviewer|factory-worker)` \| (.*) \| (.*) \|$/gm)].map((m) => [m[1], { key: m[2], none: m[3] }]));
   assert.match(slugRows["factory-desk"].none, /kv outage/);
@@ -738,17 +739,11 @@ test("per-ticket cost: the README states the design the hosts implement (the lab
   assert.doesNotMatch(readme, /high by one rather than\s+missing a ticket/, "a double count does not just raise the denominator by one; it would halve that ticket's cost, which the clamp prevents");
   assert.match(readme, /Which spans carry it, exactly\.[\s\S]*`paintOpenSpans` does not paint phase spans[\s\S]*previous turn's key on a\s+re-tagged session/, "phase spans opened before the hook settles are called out");
   assert.doesNotMatch(readme, /on every sample and span of the turn/);
-  assert.match(rows["cursor_tool_calls_total"], /some 10 to 12 distinct tickets in one 10 s interval/);
-  assert.match(readme, /the SDK keeps 499 regular sets/, "the cap holds 499 regular attribute sets plus the overflow one");
-  assert.match(readme, /^\| `cursor_token_usage_total` \| one per token type.*125 or more distinct tickets completing a turn on one host inside 10 s \(124 × 4 = 496 fits\)/m);
-  assert.match(readme, /^\| `cursor_cost_usage_USD_total` \| gone after 0\.2\.20/m);
-  assert.match(readme, /^\| `agent_sdk_turn_count_total` \| one per `agent_sdk_turn_status`.*125 or more tickets ending a turn inside 10 s \(125 × 4 = 500 overflows\)/m);
-  assert.doesNotMatch(readme, /166 or more|over 125 tickets/);
+  assert.match(readme, /^\| `cursor_cost_usage_USD_total` \| gone after July 0\.2\.20/m);
   assert.match(readme, /`agent_sdk\.tool` span \(they open at the tool call: on\s+`actions\.requested`, or in `runInCall` when July executes the tool itself\)\s+and `agent_sdk\.subagent` span \(they open on `subagent\.called`\)/, "tool spans open at the tool call, either path");
   assert.doesNotMatch(readme, /they open on `actions\.requested`\)/);
-  assert.match(readme, /^\| `agent_sdk_turn_count_total` \| one per `agent_sdk_turn_status`.*exactly `completed`, `failed`, `usage_limit`, `unpaid_invoice`.*so 1 to about 4/m, "July 0.2.18's four turn statuses, no invented ones");
+  assert.match(readme, /^\| `agent_sdk_turn_count_total` \| one per `agent_sdk_turn_status` \(`completed`, `failed`, `usage_limit`, `unpaid_invoice`\)/m, "July's four turn statuses, no invented ones");
   assert.doesNotMatch(readme, /`interrupted`, `busy`/);
-  assert.match(readme, /4 per completing ticket\. The SDK keeps 499 distinct sets per interval/, "a sentence starts with a capital");
   assert.doesNotMatch(readme, /\. the SDK keeps/);
   assert.match(slugRows["factory-desk"].key, /re-tagged by `file_ticket` itself, which calls `tagSessionTicket` the moment `createIssue` returns the key/, "the desk's mid-turn re-tag is the tool's own call");
   assert.match(slugRows["factory-desk"].key, /`approve_ticket`, `deny_ticket` and `request_plan` tag their input key on entry/);
@@ -763,16 +758,13 @@ test("per-ticket cost: the README states the design the hosts implement (the lab
   assert.match(readme, /\*Mean cost per merged ticket\*.*true mean/s);
   assert.match(readme, /\*Keyed cost over merged tickets\*.*not a mean/s);
   assert.doesNotMatch(readme, /the mean over merged tickets, wrap both sides/);
-  assert.match(readme, /\*\*Cardinality\.\*\*[\s\S]*`METRIC_CARDINALITY_LIMIT` = 500[\s\S]*within one export\s+interval \(10 s/);
-  assert.match(readme, /\| `cursor_token_usage_total` \| one per token type[\s\S]*4 × \(tickets the life worked on \+ 2\)[\s\S]*125 distinct tickets/);
-  for (const instrument of ["cursor_cost_usage_USD_total", "agent_sdk_turn_count_total", "apj_factory_ticket_merged_total", "cursor_tool_calls_total"]) {
-    // cost row is historical (gone after 0.2.20); the others are live.
-    assert.match(readme, new RegExp(`^\\| \`${instrument}\` \\| .* \\| .* \\| .* \\|$`, "m"), `${instrument} has a cardinality row`);
+  assert.match(readme, /\*\*Cardinality\.\*\* The factory's MeterProvider has no label allowlist/);
+  for (const instrument of ["agent_sdk_turn_count_total", "apj_factory_ticket_merged_total", "cursor_tool_calls_total", "cursor_token_usage_total"]) {
+    assert.match(readme, new RegExp(`^\\| \`${instrument}\` \\| .* \\| .* \\|$`, "m"), `${instrument} has a cardinality row`);
   }
-  assert.match(readme, /\| `cursor_tool_calls_total` \| none: the label is dropped \|/);
   assert.match(readme, /cursor_token_usage_total\{otel_metric_overflow="true"\}/);
-  assert.match(readme, /So the cap stays at 500\. It is not raised/);
-  assert.doesNotMatch(readme, /cardinality cap \(500 per instrument\) is\s+far above that/);
+  assert.match(readme, /2000 attribute sets per instrument per process life/);
+  assert.doesNotMatch(readme, /METRIC_CARDINALITY_LIMIT|So the cap stays at 500/);
 });
 
 test("per-ticket cost queries under promtool: first-sample merges counted, merged-before-window not, early cost counted in full via the widened cost window (tools/promtool_ticket_check.py; needs PROMTOOL)", { skip: skip || (process.env.PROMTOOL ? false : "set PROMTOOL to a promtool binary") }, () => {
