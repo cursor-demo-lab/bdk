@@ -1,34 +1,33 @@
 # July OpenTelemetry on hosted v2: what the factory relies on, and asks for upstream
 
 The factory exports traces, metrics, and logs from its six hosted v2 slugs
-to Grafana Cloud with `@cursor/july` 0.2.24 (the same release as
-`@cursor/bdk` 0.2.24; runbook:
+to Grafana Cloud with `@cursor/july` 0.2.25 (the same release as
+`@cursor/bdk` 0.2.25; runbook:
 [`factory-deployment.md`](factory-deployment.md#11-opentelemetry-export-grafana-cloud)).
-Traces and logs use July's own providers: `planner/agent/otel.ts` hands July a
-plain config (`factoryOtelConfig` in `planner/agent/lib/factory-otel.ts`:
-service name, the namespace resource attribute, `logs` on, one exporter for
-traces and logs while the header is set), and July builds the providers and
-exporters, registers them globally, and flushes them. Metrics are the one
-signal the factory still owns: July's metric exporters are DELTA and Grafana
-Cloud rejects DELTA sums (section 18), so `planner/agent/lib/factory-metrics.ts`
-registers one small cumulative meter provider that July adopts. The factory's
-spans, counters, and console lines go through the global
-`@opentelemetry/api` (the six copies of the files are byte-identical).
+All three signals use July's own providers: `planner/agent/otel.ts` hands July
+a plain config (`factoryOtelConfig` in `planner/agent/lib/factory-otel.ts`:
+service name, the namespace and `service.instance.id` resource attributes,
+`logs` on, one exporter for all three signals while the header is set), and
+July builds the providers and exporters, registers them globally, and flushes
+them. The one thing the resolver adds is a default for July's metrics
+temporality variable, `cumulative`, because Grafana Cloud rejects DELTA sums
+(section 18). The factory's spans, counters, and console lines go through the
+global `@opentelemetry/api` (the six copies of the files are byte-identical).
 `factory-desk/agent/lib/july-otel.test.ts` drives July's real runtime with
 `agent/otel.ts` and pins what the design relies on; when July changes one of
 them, that test fails first.
 
 Earlier versions of this file listed July behaviours the factory worked
-around with providers of its own for all three signals. The factory removed
-the trace and log workarounds (2026-10-14: use July's setup out of the
-box) and kept the smallest metrics one. Sections 1, 2, 3, 4,
-12, and 15 below say what happened to each; the rest are July behaviours that
+around with providers of its own, first for all three signals and, until
+0.2.25, for metrics. The workarounds are gone (2026-10-14: use July's setup out
+of the box; 0.2.25 made the metrics one unnecessary). Sections 1, 2, 3, 4, 12,
+14 and 18 below say what happened to each; the rest are July behaviours that
 still matter. July paths are under `node_modules/@cursor/july/dist/` and
-their line numbers were checked against 0.2.24. A path of the form
+their line numbers were checked against 0.2.25. A path of the form
 `packages/agent-serve/src/...` is the source in Cursor's own monorepo; those
 lines come from a diff report and were not re-checked here (external repo).
 
-What the design relies on (July 0.2.24):
+What the design relies on (July 0.2.25):
 
 - On hosted v2 the first `reload()` runs from `onSecretsReady`, after the
   secrets load, and builds the providers from the first config that has an
@@ -36,26 +35,30 @@ What the design relies on (July 0.2.24):
   (`internal/server.js:141-151,658`, `internal/hosted-delivery.js:424-430`,
   `internal/otel/runtime.js:33-95`).
 - The exporters read their headers from the latest config on each export
-  (`runtime.js:51,171-177,240-242`), and `OTEL_EXPORTER_OTLP_HEADERS` is merged
+  (`runtime.js:51,191-197,263-265`), and `OTEL_EXPORTER_OTLP_HEADERS` is merged
   into an authored exporter and URL-decoded (`internal/otel/config.js:50-53,76-102,156-164`).
 - July builds a provider only for a signal that has an exporter
-  (`runtime.js:171-191`); for a signal with none it uses the global
-  tracer, meter, or logger (`runtime.js:150-162`). That is how the factory's
-  meter provider becomes July's meter.
+  (`runtime.js:191-215`); for a signal with none it uses the global
+  tracer, meter, or logger (`runtime.js:150-162`). The factory's exporter
+  names no `signals`, so July builds all three.
 - July registers its tracer and logger providers globally unless another one
-  holds the slot (`runtime.js:200-228`), and installs a W3C propagator and the
+  holds the slot (`runtime.js:223-251`), and installs a W3C propagator and the
   outbound `fetch` wrapper when traces are on (`runtime.js:57-59,131`).
 - The resource is built from the config only: BDK ignores
-  `OTEL_RESOURCE_ATTRIBUTES` (`runtime.js:246-260`). Logs are off unless the
-  config turns them on (`config.js:194`).
-- Metric exporters are DELTA (`runtime.js:181`); nothing configures it.
+  `OTEL_RESOURCE_ATTRIBUTES` (`runtime.js:269-283`). Logs are off unless the
+  config turns them on (`config.js:220`).
+- Metric exporters take their temporality from
+  `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` (`cumulative`, `delta`,
+  `lowmemory`; default `delta`), read from `process.env` when July resolves
+  the config (`config.js:173-197`, `runtime.js:191-206`; July's own
+  guide, `dist/docs/guides/opentelemetry.md:30-32`: "For Grafana Cloud, set ...
+  `cumulative`"). The setting is part of the settings key, so it is read once,
+  when the providers are built (`runtime.js:60-71`).
 - A hosted delivery's work ends with July's `forceFlush`, capped at 1 s
   (`internal/hosted-delivery.js:1071-1090`, `runtime.js:27,44,96-117`); it
-  flushes only the providers July built. The factory's meter provider is
-  flushed by its own `agent/hooks/metrics-flush.ts` and by `traceFactory` when a
-  delivery's last factory span ends (section 12).
+  flushes the providers July built: traces, metrics, and logs.
 - July does not export console output: the only log records in its dist are
-  the collector's session events (`internal/otel/collector.js:692`, the one
+  the collector's session events (`internal/otel/collector.js:694`, the one
   `logger.emit`) and `runtime.js:162` binds the logger; no file in `dist/`
   replaces `console.log` or `console.error`. The factory's JSON event lines
   are console lines, so `console-otel.ts` sends them through the global logger.
@@ -64,43 +67,43 @@ What the design relies on (July 0.2.24):
 
 ## 1. Do not block the hosted reply on the export
 
-Status in 0.2.24: closed in July. The memory span path and its deferred export
+Status in 0.2.25: closed in July. The memory span path and its deferred export
 (`OTEL_IN_MEMORY_SPAN_LIMIT`, `OTEL_DEFERRED_EXPORT_TIMEOUT_MS`) are gone, and
 the reply waits for July's flush, capped at 1 s (`runtime.js:27,96-117`). The
-factory flushes its own meter provider only (section 12). Removed from the factory: the 2.25 s
-`SIGNALS_BUDGET_MS` wait.
+factory has no flush of its own (section 12). Removed from the factory: the
+2.25 s `SIGNALS_BUDGET_MS` wait.
 
 ## 2. Do not re-post a batch the collector rejected with 401 or 403
 
-Status in 0.2.24: closed in July (the re-post path is gone with the memory
+Status in 0.2.25: closed in July (the re-post path is gone with the memory
 buffer, `runtime.js`). The OTLP exporters keep their own retry for transient
 failures.
 
 ## 3. Bind metric and log exporter headers late, as trace export does
 
-Status in 0.2.24: closed in July for traces and logs, which let the factory
-drop its exporters for them. July builds the exporters on the first request,
+Status in 0.2.25: closed in July for all three signals, which let the factory
+drop its exporters. July builds the exporters on the first request,
 after the secrets load, and reads the headers on each export
 (`server.js:141-151,658`, `hosted-delivery.js:424-430`,
-`runtime.js:51,171-177,240-242`). Rotating the header
+`runtime.js:51,191-197,263-265`). Rotating the header
 needs no redeploy. Unsetting it does not stop a pod that already built its
 exporters: when the exporter list changes July logs `[bdk:otel] only exporter
 headers change after the first export; redeploy to apply the new OTel
-settings` (`runtime.js:60-71`) and keeps the old headers. July's team plans to
-fix that message in 0.2.25; the factory has no code for it. The metric
-exporter is the factory's (section 18) and reads the header on each export
-itself.
+settings` (`runtime.js:60-71`) and keeps the old headers, metrics included
+now that July builds that exporter. July's team planned to fix that message
+in 0.2.25; it is unchanged (`runtime.js:69`), and the factory has no code for
+it.
 
 ## 4. Flush once at a time, and do not drop spans recorded during an export
 
-Status in 0.2.24: closed for the factory's traces and logs. It had its own
+Status in 0.2.25: closed for the factory's traces, metrics, and logs. It had its own
 span processor with a queue and a retry; it now has none. July's
 `BatchSpanProcessor` batches every 5 s (the SDK default) and drops a batch
 that still fails after the OTLP exporter's retries.
 
 ## 5. Let an agent turn outbound trace context off
 
-Status in 0.2.24: open (July). The factory no longer works around it.
+Status in 0.2.25: open (July). The factory no longer works around it.
 
 With traces on, `installOutboundFetchInstrumentation` (called from
 `internal/otel/runtime.js:57-59` on every `reload()` whose config has traces
@@ -118,12 +121,14 @@ instead of the global flag.
 
 ## 6. What July's `collector.js` puts on the wire (information)
 
-Status in 0.2.24: information, no ask. Checked against
-`internal/otel/collector.js` 0.2.24 by name. Against 0.2.23 the collector
+Status in 0.2.25: information, no ask. Checked against
+`internal/otel/collector.js` 0.2.25 by name. Against 0.2.23 the collector
 changed in two ways only: it builds its metric instruments lazily from
 `runtime.meter` (`collector.js:21-37`) and it ignores every event while
 `runtime.config.enabled` is false (`collector.js:39-43`, `:72-90`; section
-16). What it puts on the wire is the same.
+16). Against 0.2.24 it changed in one: a failed tool's reason is also the
+`agent_sdk.error_message` of the `action.result` log (`collector.js:250,281`;
+section 14). What it puts on the wire is otherwise the same.
 
 The factory turns `logs.userPrompts` and `logs.toolContent` on. Grafana access
 is the only control; July is not asked to keep content off spans or logs.
@@ -170,7 +175,7 @@ requested.)
 
 ## 7. Export `defineOtel` publicly
 
-Status in 0.2.24: open (July), E7 (`dist/otel.js:4-16`: "Internal only:
+Status in 0.2.25: open (July), E7 (`dist/otel.js:4-16`: "Internal only:
 Cursor factory agents. Not a public Agent SDK export.").
 
 `defineOtel` is exported only from `@cursor/july/internal/otel` ("Internal
@@ -182,10 +187,11 @@ Ask: export it from a public path.
 
 ## 8. Restores: ids, instance id, and counters
 
-Status in 0.2.24: open (July and hosting); not tested live in 0.2.24.
-0.2.24 adds no id generator option, no restore hook, and no instance id:
-`runtime.js:195-199` builds its tracer provider with OTel's default
-generator, and `buildResource` sets no `service.instance.id`.
+Status in 0.2.25: open (July and hosting); not tested live in 0.2.25.
+0.2.25 adds no id generator option, no restore hook, and no instance id:
+`runtime.js:218-222` builds its tracer provider with OTel's default
+generator, and `buildResource` (`runtime.js:269-284`) sets no
+`service.instance.id`.
 
 Hosted v2 freezes a VM after `startServer` and restores each VM of a slug from
 that snapshot. Anything the process held at the freeze is shared by every
@@ -201,10 +207,12 @@ recorded here) found three effects:
   restored VM may or may not re-seed `Math.random`.
 - **A `service.instance.id` is only as good as its draw.** Cumulative
   counters of two VMs that share an instance id overwrite each other. July's
-  trace and log resource has none and its metrics are DELTA, so the factory
-  draws its own for the one provider it owns: one id per process life, at the
-  first export with the header set, from a fresh kernel read hashed with the
-  clocks and pid (`lifeId` in `planner/agent/lib/factory-metrics.ts`). A
+  resource has none and its metrics are now cumulative, so the factory
+  adds its own to the config, which July puts on the resource of all three
+  signals: one id per process life, drawn only while the header is set, from
+  a fresh kernel read hashed with the clocks and pid (`lifeId` in
+  `planner/agent/lib/factory-otel.ts`). July builds its providers from the
+  first config that has an exporter, so the id is stable from then on. A
   snapshot is taken before any secret binds, so no id is in it. What was
   removed: the restore-skew redraw (a clock step against the monotonic clock,
   meant for a snapshot taken after the id was drawn and restored more than
@@ -215,8 +223,7 @@ recorded here) found three effects:
 - **Cumulative counters rewind across lives.** The rebase subtracted the old
   life's totals from a new life's first export. It is gone because no
   instrument records a value before the first request, so a new life starts at
-  its own increments (`factory-metrics.test.ts` checks that a startup flush
-  sends nothing).
+  its own increments.
 
 Ask: draw span and trace ids from the platform's CSPRNG when a span starts (or
 accept an `idGenerator` in `defineOtel`); give each restore its own
@@ -226,7 +233,7 @@ hosting sets per VM). A restore hook (an event or a callback in
 
 ## 9. Do not drop July's own spans under an unsampled inbound request
 
-Status in 0.2.24: open (July). Sampling checked in 0.2.24 for the turn span
+Status in 0.2.25: open (July). Sampling checked in 0.2.25 for the turn span
 only (`collector.js` starts it from `ROOT_CONTEXT`); `agent_sdk.http` starts
 under the extracted parent (`internal/otel/http.js:45-56`). The MCP case was
 last read on 0.2.18 and is not re-verified.
@@ -250,7 +257,7 @@ had `flags=1`). What that drops depends on the span's parent:
 The factory starts each of its own spans as a new root with a link to the
 inbound span (`startOptions` in `factory-otel.ts`). It does not change
 `agent_sdk.http`, which stays unrecorded for unsampled requests. July's
-sampler is `ParentBased(TraceIdRatioBased(1))` (`runtime.js:198`), so the
+sampler is `ParentBased(TraceIdRatioBased(1))` (`runtime.js:221`), so the
 three cases are as listed. A hanging collector costs a delivery July's 1 s
 flush at most.
 
@@ -259,12 +266,12 @@ the factory does), or make the sampler configurable in `defineOtel`.
 
 ## 10. Stamp the turn's cost before `turn.completed` reaches the collector
 
-Status in 0.2.24: open (July). Closed on the factory side as "dropped, not
+Status in 0.2.25: open (July). Closed on the factory side as "dropped, not
 renamed".
 
 Since 0.2.20 the collector does not increment `cursor.cost.usage` and does
-not read `event.data.cost` on `turn.completed`; 0.2.24 is the same: the
-collector creates five counters (`collector.js:701-718`), and the name is
+not read `event.data.cost` on `turn.completed`; 0.2.25 is the same: the
+collector creates five counters (`collector.js:703-720`), and the name is
 only in the reserved list in `internal/host-otel.js:14`. Token
 usage is unaffected. Factory config must not mint that metric; Grafana spend
 is tokens × `$price_*`
@@ -275,16 +282,16 @@ collector, or have the collector record cost from a later event.
 
 ## 11. End a tool span that never got a result with a status
 
-Status in 0.2.24: the status is set (since 0.2.21, July); unchanged in
-0.2.24. The count is open and not verified in a live turn.
+Status in 0.2.25: the status is set (since 0.2.21, July); unchanged in
+0.2.25. The count is open and not verified in a live turn.
 
 July opens an `agent_sdk.tool` span on `actions.requested` and sets
 `cursor.tool.status` and the span status on `action.result`
 (`internal/otel/collector.js`). Since 0.2.21 a call that starts and never gets
 a result is ended by `turn.completed` / `turn.failed` (`endOpenChildren`,
-`collector.js:577-600`) with `cursor.tool.status=unknown` and span status
+`collector.js:579-602`) with `cursor.tool.status=unknown` and span status
 ERROR `"no result"`. `cursor.tool.calls` is incremented only on
-`action.result` (`collector.js:269`), not in `endOpenChildren`, so such a call
+`action.result` (`collector.js:270`), not in `endOpenChildren`, so such a call
 is invisible to status-count panels. Whether the count is emitted for that
 span has not been checked in a live turn; recheck in Grafana.
 
@@ -307,70 +314,52 @@ The factory does not rewrite the span.
 
 ## 12. Export the turn's end before the hosted reply
 
-Status in 0.2.24: closed for traces and logs by removing the factory's code,
-worked around for metrics. July now builds the trace and log providers, so its
-hosted flush covers them: it runs after each hosted admission and execution,
-after the session's end events
-(`hosted-delivery.js:472,539,623,696,1071-1090`), capped at 1 s. The factory's
-meter provider is not July's (`runtime.js:44` flushes the providers July
-built), so July's flush does not export it, and hosted v2 can park the VM as
-soon as the reply lands.
+Status in 0.2.25: closed for all three signals by removing the factory's
+code. Until 0.2.25 July's meter provider was not the one that exported the
+factory's metrics (the factory's own cumulative provider was), so July's flush
+skipped it and the factory carried a turn-end hook and a span-end flush to
+cover the gap. July now builds the meter provider, so its hosted flush covers
+traces, metrics, and logs: it runs after each hosted admission and execution
+(`hosted-delivery.js:472,539,623,696,1071-1090`), capped at 1 s, and flushes
+every provider it built (`runtime.js:44,118-122`). Removed from the factory:
+`agent/hooks/metrics-flush.ts`, `flushFactoryMetrics`, and the span-end flush
+in `traceFactory` (`registerFactoryFlush`).
 
-The factory's workaround is `agent/hooks/metrics-flush.ts`
-(`flushFactoryMetrics` in `lib/factory-metrics.ts`): an awaited, 1 s-bounded
-`forceFlush` of the factory's provider on `session.waiting`,
-`session.completed` and `session.failed`. Order, checked in 0.2.24's dist:
-`session-engine.js` `dispatchEvent` awaits every hook handler of an event
-(`:3724-3750`) and only then calls `this.otel?.onEvent(event)`, where
-`turn.completed` records `cursor.token.usage` and `agent_sdk.turn.count`
-(`otel/collector.js:347-368`), so a `turn.completed` hook flushes too early;
-the `session.*` event that follows each turn (`session-engine.js:1877-1887`) is
-dispatched later on the same per-session chain (`queueDispatch`, `:3646`), and
-hosted execution awaits that chain (`waitForCompletion` `:3789`, called at
-`hosted-delivery.js:794`) before durability drain and the reply.
+Why July's flush is late enough, checked in 0.2.25's dist:
+`session-engine.js` `dispatchEvent` awaits every hook handler of an event and
+only then calls `this.otel?.onEvent(event)`, where `turn.completed` records
+`cursor.token.usage` and `agent_sdk.turn.count` (`otel/collector.js:349-370`);
+the `session.*` event that follows each turn is dispatched later on the same
+per-session chain (`queueDispatch`), and hosted execution awaits that chain
+(`waitForCompletion`, called at `hosted-delivery.js:794`) before the durability
+drain and the reply. `afterHostedWork` runs July's flush in its `finally`
+(`:1071-1090`), after all of it. The two samples the factory's flush could not
+cover are inside that window too: the execution request's own
+`agent_sdk.hosted_execution.duration_ms` (`finalizeHostedExecutionLatency`,
+`hosted-delivery.js:861,887`, inside the execution callback that
+`afterHostedWork` wraps at `:696`) and `agent_sdk.http.duration`
+(`endActiveHttpSpan`, `hosted-delivery.js:1075`, `otel/http.js:81`, before the
+`finally`).
 
 A delivery that runs no turn has no `session.*` event. `runAdmission` captures
 every `waitUntil` promise (`background.push`, `hosted-delivery.js:262-264`) and
-awaits them all (`:294`) before it builds the admission reply; `afterHostedWork`
-then runs July's flush and replies (`:472,1071-1090`). So work awaited inside
-the handler or inside a `waitUntil` promise finishes before the reply, and
-`traceFactory` (`lib/factory-otel.ts`) flushes the factory's provider when the
-last open factory span of a delivery ends, with the same `flushFactoryMetrics`
-and its 1 s bound, after `recordMetrics` and after `span.end()`. A `waitUntil`
-span starts inside the delivery span, so it is that span's child and outlives
-it (`triage-jira` `webhook.otel.test.ts` pins this): the delivery's span ends
-with the wake still open and the wake's end flushes both counters. The
-`factory-metrics.ts` already imports `factory-otel.ts`, so `factory-otel.ts`
-cannot import the flush back: `installFactoryMeter` registers it with
-`registerFactoryFlush` (held on `globalThis` like the provider). Residual gaps, still on the 10 s
-export: the execution request's own `agent_sdk.hosted_execution.duration_ms`
-(recorded in `finalizeHostedExecutionLatency`, `hosted-delivery.js:861,887`,
-after the drain, via `hosted-execution-latency.js:170-200`) and
-`agent_sdk.http.duration` (`otel/http.js:81`, when the request's span ends),
-which July records after the work; any metric recorded outside a factory span;
-and work a handler detaches from `waitUntil`. July's `afterHostedWork` flush
-(`:1071-1090`) skips the factory's provider.
+awaits them all (`:294`) before it builds the admission reply, and
+`afterHostedWork` then runs July's flush (`:472,1071-1090`). So work awaited
+inside the handler or inside a `waitUntil` promise is exported with the reply
+(`triage-jira` `webhook.otel.test.ts` pins the wake's counter).
+`factory-desk/agent/lib/july-otel.test.ts` shows it on July's real runtime:
+metrics recorded with no factory flush leave with `runtime.forceFlush()`.
 
-Behaviour of the span-end flush to know when reading the series:
-- Concurrent deliveries each flush, so full cumulative exports can overlap;
-  Mimir may reject an occasional out-of-order sample, and the next export
-  carries the same cumulative value.
-- A factory span started under a non-factory span (for example the
-  `cloud_agent.drive` launch span `drive_pr` starts inside a turn) is its own delivery and flushes at
-  its end, up to 1 s.
-- A factory span that never settles keeps its delivery from flushing; the
-  session hook and the 10 s timer still apply.
-
-Ask: have `flushOtel` also flush the registered global meter provider (or let
-an agent register an extra provider for it), which also covers the residual
-gaps and retires the span-end flush, or build the meter provider with a
-configurable temporality (section 18) so the factory needs neither this hook
-nor `factory-metrics.ts`.
+Residual gaps, still on the 10 s export: work a handler detaches from
+`waitUntil`, a flush that exceeds the 1 s bound, and any request that does not
+go through `afterHostedWork`. Concurrent deliveries each flush, so full
+cumulative exports can overlap; Mimir may reject an occasional out-of-order
+sample, and the next export carries the same cumulative value.
 
 ## 13. Bug 7: `requestId` and `turn.bound` on cloud turns
 
-Status in 0.2.24: open (SDK and backend, with BDK following). No workaround
-in code; Grafana joins on session ids. `@cursor/sdk` stays 1.0.37; July 0.2.24
+Status in 0.2.25: open (SDK and backend, with BDK following). No workaround
+in code; Grafana joins on session ids. `@cursor/sdk` stays 1.0.37; July 0.2.25
 did not change the two BDK lines below.
 
 Cloud turns emit no `turn.bound` and carry no `requestId`, so a cloud turn
@@ -382,7 +371,7 @@ Evidence (re-checked on 2026-10-13):
   `this.requestId = e.requestId` once, from the create response. Types:
   `dist/esm/cloud-api-client.d.ts:97`, `dist/esm/run.d.ts:40,53`.
 - BDK reads it once, after `send()`, with no fallback after `run.wait()`:
-  `internal/sdk-runner.js:390-393` calls `onRequestId` only when
+  `internal/sdk-runner.js:391-394` calls `onRequestId` only when
   `run.requestId` is non-empty, and `internal/session-engine.js:2278`
   turns that call into `turn.bound`. A cloud handle has none, so none is
   emitted. Source: `packages/agent-serve/src/internal/sdk-runner.ts:559`,
@@ -399,17 +388,19 @@ per run, so BDK emits `turn.bound` on cloud turns.
 
 ## 14. E5: tool failure text on the span status
 
-Status in 0.2.24: fixed in 0.2.21 (BDK) for the span status; nothing to ask.
+Status in 0.2.25: fixed for the span status in 0.2.21 and for the
+`action.result` log in 0.2.25 (BDK); nothing to ask.
 
 The span status said only "tool error". 0.2.21 added
 `toolFailureReason(event.data.output)` (0 hits in 0.2.20, 2 in 0.2.21-0.2.24):
-`internal/otel/collector.js:262` (the call) and `:730-736` (the function,
-truncated to `SPAN_STATUS_REASON_MAX`). Not checked: whether the
-`action.result` log record carries the text.
+`internal/otel/collector.js:250` (the call), `:263` (the span status) and
+`:732-738` (the function, truncated to `SPAN_STATUS_REASON_MAX`). 0.2.25 also
+puts the text on the `action.result` log record as `agent_sdk.error_message`
+(`collector.js:281`; July's guide, `dist/docs/guides/opentelemetry.md:209-210`).
 
 ## 15. July calls the resolver on every hosted request
 
-Status in 0.2.24: information. `reload()` calls the authored `defineOtel`
+Status in 0.2.25: information. `reload()` calls the authored `defineOtel`
 factory after each hosted secrets load (`runtime.js:86-93`; `server.js:658`,
 `hosted-delivery.js:429`); 0.2.23 called it once at startup. `factoryOtelConfig`
 is a pure function of the environment, so repeated calls return the same
@@ -418,7 +409,7 @@ config. July logs the redeploy warning only when the exporter list changes
 
 ## 16. The first hosted request of each process life has no `agent_sdk.http` span
 
-Status in 0.2.24: new, P2. Open (July). Rated minor and accepted
+Status in 0.2.25: new, P2. Open (July). Rated minor and accepted
 (2026-10-14): the factory adds no code for it.
 
 Ask (upstream fix): in `packages/agent-serve/src/internal/otel/http.ts:56-68`
@@ -451,11 +442,9 @@ What changes for the factory, on that one request per process life:
   it does not join Cursor's backend trace (`startOptions` in
   `factory-otel.ts` adds the link only when an inbound span context is valid).
 - Until July builds its providers the global tracer and logger are no-ops, so
-  a factory span or console line from before the load is not exported. The
-  factory's meter provider exists from startup, so its counters are kept and
-  the first export carries them. The factory's handlers run after
-  `onSecretsReady`, so only July's own early lines (`[bdk] hosted admission
-  received ...`) are lost.
+  a factory span, counter or console line from before the load is not
+  exported. The factory's handlers run after `onSecretsReady`, so only
+  July's own early lines (`[bdk] hosted admission received ...`) are lost.
 
 No factory span can read the inbound `traceparent` with code that exists today:
 `traceFactory` receives no request. A fix would need new header plumbing
@@ -467,12 +456,12 @@ lines leave.
 
 ## 17. July logs a duplicate propagator registration on every start
 
-Status in 0.2.24: new. Open (July). Seen with `serve --dir planner --dev` and
+Status in 0.2.25: new. Open (July). Seen with `serve --dir planner --dev` and
 a header set; not seen on a hosted pod.
 
 `startSdk` installs the W3C propagator (`ensureW3cPropagator`,
 `internal/otel/propagation.js`, from `runtime.js:131`), and the
-`NodeTracerProvider` that July then registers (`runtime.js:204`) sets a
+`NodeTracerProvider` that July then registers (`runtime.js:227`) sets a
 propagator of its own. The second registration fails and OTel's diag logger
 prints `[bdk:otel] error: Error: @opentelemetry/api: Attempted duplicate
 registration of API: propagation` with a stack, once per process life. The
@@ -487,26 +476,36 @@ own propagator when it builds a `NodeTracerProvider`, or pass
 
 ## 18. Metric exporters are DELTA and Grafana Cloud rejects DELTA sums
 
-Status in 0.2.24: open (July). This is the ask to file upstream.
-Worked around by the factory's cumulative meter provider
-(`planner/agent/lib/factory-metrics.ts`).
+Status in 0.2.25: closed in July. The ask was granted as an environment
+variable, not a `defineOtel` option, and the factory's workaround (a
+cumulative meter provider of its own) is removed.
 
-**Ask:** July reads `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, or
-adds a `defineOtel` temporality option, with the default CUMULATIVE.
+July reads `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`
+(`cumulative`, `delta`, `lowmemory`; default `delta`; an unrecognised value
+logs a warning and falls back to `delta`) from `process.env` in
+`resolveOtelConfig` (`internal/otel/config.js:173-197`) and passes it to its
+OTLP metric exporters (`internal/otel/runtime.js:171-206`). Its guide says:
+"For Grafana Cloud, set `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` to
+`cumulative`" (`dist/docs/guides/opentelemetry.md:30-32`). The value is part of
+the settings key, so it is read when July builds the providers (the first
+config with an exporter) and a later change logs the redeploy warning
+(`runtime.js:60-71`).
 
-**Source:** `packages/agent-serve/src/internal/otel/runtime.ts:311` in Cursor's
-monorepo (dist `internal/otel/runtime.js:181`) hard-codes
-`temporalityPreference: AggregationTemporality.DELTA` on every OTLP metric
-exporter. Nothing configures it: no field in `defineOtel`, and
-`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` is not read. (The
-`runtime.ts` line comes from a diff report; external repo, not re-checked
-here.)
+**How the factory sets it.** The `defineOtel` resolver in `agent/otel.ts` runs
+`process.env[...] ||= "cumulative"` and returns `factoryOtelConfig`. Why there,
+and not as a deployment secret or a module-level default:
 
-**Once that ships, `factory-metrics.ts` is removed.** The factory then drops
-the meter provider, the per-export header function, the instance id, and the
-hosted-execution View's separate registration, and lets July build its own meter
-provider (the View for the hosted-execution buckets would need a second ask: a
-View list in `defineOtel`, because July sets no advice on that histogram).
+- July calls the resolver at each `reload()`, which on hosted v2 is after the
+  secrets bind (`server.js:658`, `hosted-delivery.js:424-430`), and
+  `resolveOtelConfig` reads the variable after it resolves the authored config
+  (`config.js:36,59,187-197`), so the value is in place when July reads it.
+- A deployment secret needs a step per slug, and a slug that missed it
+  silently exports DELTA, which Grafana drops with HTTP 400. A module-level
+  default is deleted from `process.env` if the same name is ever bound and
+  later unbound (`hosted-deployment-secrets.js:54-58`); the resolver sets it
+  again on each call.
+- `||=` leaves an operator's value alone, including `delta`, and replaces an
+  empty string, which July reads as `delta`.
 
 **Grafana-side evidence** (measured 2026-10-14; an earlier probe the same day
 measured the same 400 on the factory's header):
@@ -527,18 +526,25 @@ measured the same 400 on the factory's header):
   | delta non-monotonic sum | 200 |
   | cumulative (sum) | 200 (stored as 1, 3, 6) |
 
-So the Grafana-side options were checked and rejected; the real fix is
-upstream. A non-monotonic delta sum is accepted, but July's counters are
-monotonic, so that is no way out.
+So the Grafana-side options were checked and rejected; the fix is on the
+sender, and 0.2.25 has it. A non-monotonic delta sum is accepted, but July's
+counters are monotonic, so that was no way out.
 
-**How the factory works around it:** the config names no metrics exporter, so
-July builds no meter provider and uses the global one
-(`runtime.js:155-158`: `providers?.metrics?.getMeter(...) ?? metrics.getMeter(...)`),
-which `agent/otel.ts` registers before `startServer`. Traces and logs stay on
-July's providers (`signals: ["traces", "logs"]`). A turn's metrics are
-flushed at the turn's `session.*` event by `agent/hooks/metrics-flush.ts`, and
-at the end of a delivery's factory spans by `traceFactory` (section 12); the
-execution request's own `agent_sdk.hosted_execution.duration_ms` and
-`agent_sdk.http.duration`, and any metric recorded outside a factory span, still
-depend on the 10 s export (section 12), so a pod destroyed within 10 s of them
-loses that interval.
+What the removal cost: July has no View hook, so
+`agent_sdk.hosted_execution.duration_ms` keeps the OTel default buckets
+(section 19), and July's resource has no `service.instance.id`, which the
+factory keeps adding (section 8).
+
+## 19. Bucket advice for `agent_sdk.hosted_execution.duration_ms`
+
+Status in 0.2.25: nice-to-have, not a blocker.
+
+July creates the histogram with `unit` and `description` only
+(`internal/hosted-execution-latency.js:56-62`), so it has the OTel default
+buckets, 0 to 10 000 ms and `+Inf`. The factory does not re-add a View (Simon,
+2026-10-15): the Factory ops panels "Hosted execution p95 by service (total)"
+and "Exec duration" read `agent_sdk.turn` span durations from Tempo instead
+([`observability/grafana/README.md`](../observability/grafana/README.md)).
+Bucket advice up to 30 min on that histogram, or a `views` list in
+`defineOtel`, would still let the metric itself answer >10 s questions
+without Tempo's 25 h query limit.

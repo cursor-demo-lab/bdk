@@ -7,7 +7,7 @@ import { pinIssueIdentifier } from "../lib/parse-queue-event.js";
 // its own (factory-otel.ts, "Ticket on token usage": the one approved addition
 // to July's spans; the label is on all of July's metrics and spans for the
 // session, `cursor.tool.calls` included: July's `join` stamps the whole tag bag
-// on every sample (dist/internal/otel/collector.js:619-626) and the factory has
+// on every sample (dist/internal/otel/collector.js:621-628) and the factory has
 // no metric View). A triage run is pinned to its ticket by its continuation
 // token, the issue key itself (the issue-created webhook and the queue route
 // both pin it; parse-queue-event.ts pinIssueIdentifier). A session with no pin

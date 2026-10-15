@@ -7,7 +7,7 @@ import { tagSessionTicket } from "../lib/factory-otel.js";
 // on its own (factory-otel.ts, "Ticket on token usage": the one approved
 // addition to July's spans; the label is on all of July's metrics and spans for
 // the session, `cursor.tool.calls` included: July's `join` stamps the whole tag
-// bag on every sample (dist/internal/otel/collector.js:619-626) and the factory
+// bag on every sample (dist/internal/otel/collector.js:621-628) and the factory
 // has no metric View). A planning run is pinned to its ticket by its
 // continuation key, `issue:<KEY>#<attempt>` (chain.ts pinnedIssueKey; the
 // Triaged webhook and plan_issue both pin). A session with no pin (a playground

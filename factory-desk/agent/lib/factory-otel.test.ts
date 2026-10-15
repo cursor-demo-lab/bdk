@@ -16,6 +16,7 @@ import {
   exportConfigured,
   factoryOtelConfig,
   GRAFANA_OTLP_ENDPOINT,
+  lifeId,
   noteFactory,
   otlpEndpoint,
   traced,
@@ -348,16 +349,16 @@ test("tracedGithubHook: the delivery is a linked root and the task, run later in
   assert.equal(task.parentSpanContext?.spanId, delivery.spanContext().spanId);
 });
 
-test("factoryOtelConfig: no exporter while the header is unset, one for traces and logs only while it is set", () => {
+test("factoryOtelConfig: no exporter while the header is unset, one for all three signals while it is set", () => {
   assert.deepEqual(factoryOtelConfig({}).exporters, []);
   assert.deepEqual(factoryOtelConfig({ OTEL_EXPORTER_OTLP_ENDPOINT: "https://x/otlp" }).exporters, [], "an endpoint alone gives the config no exporter");
   const set = factoryOtelConfig({ OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic x" });
-  assert.deepEqual(set.exporters, [{ url: GRAFANA_OTLP_ENDPOINT, signals: ["traces", "logs"] }], "no metrics: July's DELTA exporter is rejected by Grafana, so metrics go through factory-metrics.ts");
+  assert.deepEqual(set.exporters, [{ url: GRAFANA_OTLP_ENDPOINT }], "no signals list: July builds traces, metrics, and logs exporters");
   assert.equal(JSON.stringify(set).includes("Basic"), false, "July reads the header from the env; the config never holds it");
   assert.deepEqual(set.logs, { userPrompts: true, toolContent: true }, "logs are on, with prompts and tool content");
 });
 
-test("factoryOtelConfig: the service is the slug on managed hosting and one shared name off it; OTEL_SERVICE_NAME wins; the resource is set here", () => {
+test("factoryOtelConfig: the service is the slug on managed hosting and one shared name off it; OTEL_SERVICE_NAME wins; the resource is set here until the header binds", () => {
   const hosted = factoryOtelConfig({ AGENT_SERVE_GENERATION: "7" });
   assert.equal(hosted.serviceName, factorySlug);
   assert.deepEqual(hosted.resourceAttributes, {
@@ -381,6 +382,25 @@ test("factoryOtelConfig names a staging slug and its stage", () => {
   assert.equal(staging.serviceName, `${factorySlug}-staging`);
   assert.equal(staging.resourceAttributes?.["deployment.environment"], "staging");
   assert.equal(staging.resourceAttributes?.["factory.slug"], `${factorySlug}-staging`);
+});
+
+test("service.instance.id: absent while the header is unset (so a snapshot holds none), then one 32-hex id per process life, the same on every call", () => {
+  const LIFE = Symbol.for("apj_factory.otel.life");
+  const holder = globalThis as { [LIFE]?: string };
+  delete holder[LIFE];
+  try {
+    assert.equal(factoryOtelConfig({ AGENT_SERVE_GENERATION: "7" }).resourceAttributes?.["service.instance.id"], undefined);
+    assert.equal(holder[LIFE], undefined, "an id is not drawn before the header binds");
+    const env = { AGENT_SERVE_GENERATION: "7", OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic x" };
+    const first = factoryOtelConfig(env).resourceAttributes?.["service.instance.id"];
+    assert.match(String(first), /^[0-9a-f]{32}$/);
+    assert.equal(factoryOtelConfig(env).resourceAttributes?.["service.instance.id"], first);
+    assert.equal(lifeId(), first);
+    delete holder[LIFE];
+    assert.notEqual(lifeId(), first, "a fresh process life draws its own id");
+  } finally {
+    delete holder[LIFE];
+  }
 });
 
 test("factoryOtelConfig is the same on every call for one env: July's reload on each hosted delivery sees no change", () => {

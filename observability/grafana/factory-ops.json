@@ -1536,7 +1536,7 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
-      "description": "ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables. With Service=All this matches Factory business Spend. Narrow Service to one factory-* slug to see that host only. Breakdown under Debug: cost.",
+      "description": "ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables. With Service=All this matches Factory business Spend. Narrow Service to one factory-* slug to see that host only. Breakdown under Debug: cost.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -5506,7 +5506,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "description": "Estimated spend in the time range by factory service. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
+          "description": "Estimated spend in the time range by factory service. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5671,7 +5671,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "description": "All six factory slugs are always listed; an idle slug shows 0. Only factory-desk, factory-planner and factory-security-reviewer run model turns; the other slugs show 0. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables. Each bar is the count in the bucket starting at it (bucket = $bucket): the point at t covers (t, t+step]. Prometheus uses $__interval, a one-step negative offset, and a ${prom_res} subquery (1m below 7d, 5m at 7d+) that keeps only samples with from ≤ time() ≤ to. The last bar on a range that ends before now stops at the last whole ${prom_res} step at or before $__to (the subquery grid); a range end that is not on that grid leaves up to one ${prom_res} step of events out of both the bars and the range stats (the two still agree). The first bar can start one step before $__from while counting only samples at or after $__from. The step is $bucket; Prometheus widens it on long ranges. On a live range (to = now) the last bar is the in-progress bucket. The range stats and tables are the totals for the whole window. They use the same ${prom_res} subquery and reset rule as the bars. For _total, the subquery inner is max_over_time(s[${smooth}]) (${smooth} is 2m below 7d, 5m at 7d+, always at least ${prom_res}). increase() runs when that smoothed window dropped (resets>0), including a restart whose new life passes the old maximum; on a range no longer than about ${smooth} plus one step, a single restart near the range start is also counted from the raw samples. Flips shorter than ${smooth} become a stable high-water mark. Flips longer than ${smooth} can make a bar take increase() leftover. Writer flips longer than ${smooth} are read as restarts; bars and range can then both read many times high — each flip re-counts up to the counter's full lifetime value — and Loki/Tempo are the reference. Otherwise, after a plain restart the range and the bars are both increase() estimates (±10–20%). Per-bucket Prometheus legends match the range within that leftover, rounding on count bars, and up to one ${prom_res} step when $__to is not on the subquery grid (bars and range stats then both omit it). A Loki bar chart can include the last bar past a range that ends before now and can miss up to one step at the range start. Quote the range stats; treat bars after a restart as estimates. Counted with counter_inc (see the folder README): hosted VMs are short-lived and each is its own series, which increase() and rate() would undercount. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. The range stats and tables are the totals for the whole window. They use the same ${prom_res} subquery and reset rule as the bars. For _total, the subquery inner is max_over_time(s[${smooth}]) (${smooth} is 2m below 7d, 5m at 7d+, always at least ${prom_res}). increase() runs when that smoothed window dropped (resets>0), including a restart whose new life passes the old maximum; on a range no longer than about ${smooth} plus one step, a single restart near the range start is also counted from the raw samples. Flips shorter than ${smooth} become a stable high-water mark. Flips longer than ${smooth} can make a bar take increase() leftover. Writer flips longer than ${smooth} are read as restarts; bars and range can then both read many times high — each flip re-counts up to the counter's full lifetime value — and Loki/Tempo are the reference. Otherwise, after a plain restart the range and the bars are both increase() estimates (±10–20%). Per-bucket Prometheus legends match the range within that leftover, rounding on count bars, and up to one ${prom_res} step when $__to is not on the subquery grid (bars and range stats then both omit it). A Loki bar chart can include the last bar past a range that ends before now and can miss up to one step at the range start. Quote the range stats; treat bars after a restart as estimates.",
+          "description": "All six factory slugs are always listed; an idle slug shows 0. Only factory-desk, factory-planner and factory-security-reviewer run model turns; the other slugs show 0. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables. Each bar is the count in the bucket starting at it (bucket = $bucket): the point at t covers (t, t+step]. Prometheus uses $__interval, a one-step negative offset, and a ${prom_res} subquery (1m below 7d, 5m at 7d+) that keeps only samples with from ≤ time() ≤ to. The last bar on a range that ends before now stops at the last whole ${prom_res} step at or before $__to (the subquery grid); a range end that is not on that grid leaves up to one ${prom_res} step of events out of both the bars and the range stats (the two still agree). The first bar can start one step before $__from while counting only samples at or after $__from. The step is $bucket; Prometheus widens it on long ranges. On a live range (to = now) the last bar is the in-progress bucket. The range stats and tables are the totals for the whole window. They use the same ${prom_res} subquery and reset rule as the bars. For _total, the subquery inner is max_over_time(s[${smooth}]) (${smooth} is 2m below 7d, 5m at 7d+, always at least ${prom_res}). increase() runs when that smoothed window dropped (resets>0), including a restart whose new life passes the old maximum; on a range no longer than about ${smooth} plus one step, a single restart near the range start is also counted from the raw samples. Flips shorter than ${smooth} become a stable high-water mark. Flips longer than ${smooth} can make a bar take increase() leftover. Writer flips longer than ${smooth} are read as restarts; bars and range can then both read many times high — each flip re-counts up to the counter's full lifetime value — and Loki/Tempo are the reference. Otherwise, after a plain restart the range and the bars are both increase() estimates (±10–20%). Per-bucket Prometheus legends match the range within that leftover, rounding on count bars, and up to one ${prom_res} step when $__to is not on the subquery grid (bars and range stats then both omit it). A Loki bar chart can include the last bar past a range that ends before now and can miss up to one step at the range start. Quote the range stats; treat bars after a restart as estimates. Counted with counter_inc (see the folder README): hosted VMs are short-lived and each is its own series, which increase() and rate() would undercount. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. The range stats and tables are the totals for the whole window. They use the same ${prom_res} subquery and reset rule as the bars. For _total, the subquery inner is max_over_time(s[${smooth}]) (${smooth} is 2m below 7d, 5m at 7d+, always at least ${prom_res}). increase() runs when that smoothed window dropped (resets>0), including a restart whose new life passes the old maximum; on a range no longer than about ${smooth} plus one step, a single restart near the range start is also counted from the raw samples. Flips shorter than ${smooth} become a stable high-water mark. Flips longer than ${smooth} can make a bar take increase() leftover. Writer flips longer than ${smooth} are read as restarts; bars and range can then both read many times high — each flip re-counts up to the counter's full lifetime value — and Loki/Tempo are the reference. Otherwise, after a plain restart the range and the bars are both increase() estimates (±10–20%). Per-bucket Prometheus legends match the range within that leftover, rounding on count bars, and up to one ${prom_res} step when $__to is not on the subquery grid (bars and range stats then both omit it). A Loki bar chart can include the last bar past a range that ends before now and can miss up to one step at the range start. Quote the range stats; treat bars after a restart as estimates.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5853,7 +5853,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "description": "Mean full cost of the tickets merged in the trailing 24h: for each ticket merged in that window, its own end-to-end estimated cost from factory_ticket_key over the last 7 days (summed over every host that tagged the key; the Service filter does not apply), then the mean across those merged tickets. Unkeyed turns (factory_ticket_key none or other) and tickets not merged in the window contribute nothing. The points are the same mean per 6h bucket. Tickets merged before the ticket key was deployed (2026-10-04 04:43 UTC) carry no key, so the line starts from then; it has a value only once a merged ticket's key also appears on the token and cost counters. Excludes the worker's cloud build agent (launched through @cursor/sdk, not counted by July); the planner's cloud turns (since #227) and the worker's July cloud turn (since #229) are counted, and report input net of cache reads, which the per-series uncached rule prices in full. Counter-based figures can read high after a host changes its service instance id if the restore carried nonzero totals: the new series starts at them, and they are counted again. The factory draws one id per process life and does not rebase; nothing records a value before the first request, so a new life normally starts at its own increments. Two lives that share an id are not repaired, and a pod frozen before its next 10 s export loses that interval. Loki and Tempo are the reference. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
+          "description": "Mean full cost of the tickets merged in the trailing 24h: for each ticket merged in that window, its own end-to-end estimated cost from factory_ticket_key over the last 7 days (summed over every host that tagged the key; the Service filter does not apply), then the mean across those merged tickets. Unkeyed turns (factory_ticket_key none or other) and tickets not merged in the window contribute nothing. The points are the same mean per 6h bucket. Tickets merged before the ticket key was deployed (2026-10-04 04:43 UTC) carry no key, so the line starts from then; it has a value only once a merged ticket's key also appears on the token and cost counters. Excludes the worker's cloud build agent (launched through @cursor/sdk, not counted by July); the planner's cloud turns (since #227) and the worker's July cloud turn (since #229) are counted, and report input net of cache reads, which the per-series uncached rule prices in full. Counter-based figures can read high after a host changes its service instance id if the restore carried nonzero totals: the new series starts at them, and they are counted again. The factory draws one id per process life and does not rebase; nothing records a value before the first request, so a new life normally starts at its own increments. Two lives that share an id are not repaired, and a pod frozen before its next 10 s export loses that interval. Loki and Tempo are the reference. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6035,7 +6035,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "description": "Estimated spend, tokens and model turns per Jira ticket with a ticket key in the time range (including in-flight tickets), plus **Unattributed (before ticket tagging)** when spend has no Jira key (none / other / empty, or before tagging rolled out). Keyed rows plus that row equal Spend / Cost above. Paste a key into the Ticket box (or use Recent tickets) to open it — this table has no per-row links so Unattributed cannot open a fake Jira URL. Counter-based figures can read high after a host changes its service instance id if the restore carried nonzero totals: the new series starts at them, and they are counted again. The factory draws one id per process life and does not rebase; nothing records a value before the first request, so a new life normally starts at its own increments. Two lives that share an id are not repaired, and a pod frozen before its next 10 s export loses that interval. Loki and Tempo are the reference. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
+          "description": "Estimated spend, tokens and model turns per Jira ticket with a ticket key in the time range (including in-flight tickets), plus **Unattributed (before ticket tagging)** when spend has no Jira key (none / other / empty, or before tagging rolled out). Keyed rows plus that row equal Spend / Cost above. Paste a key into the Ticket box (or use Recent tickets) to open it — this table has no per-row links so Unattributed cannot open a fake Jira URL. Counter-based figures can read high after a host changes its service instance id if the restore carried nonzero totals: the new series starts at them, and they are counted again. The factory draws one id per process life and does not rebase; nothing records a value before the first request, so a new life normally starts at its own increments. Two lives that share an id are not repaired, and a pod frozen before its next 10 s export loses that interval. Loki and Tempo are the reference. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
           "fieldConfig": {
             "defaults": {
               "custom": {
@@ -6342,7 +6342,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "July 0.2.20 dropped `cursor.cost.usage`; 0.2.24 still emits no USD cost metric and no `cursor.model.name` / `agent_sdk.cost_usd` on new turns. Cost here is tokens × the hidden price variables (USD per 1M tokens, [Cursor list prices](https://cursor.com/docs/models-and-pricing), retrieved 2026-10-03), by design, not a workaround for a late estimate. Defaults are Grok 4.6 Fast, the desk's and triage's model: $4 input, $1 cache read, $12 output; reasoning $0 because reasoning tokens are counted inside output. Uncached input is priced at the input price and cache reads once at the cache price. Historical `cursor_cost_usage_USD_total` series, if still in the store, are unused.\n\nThe planner, worker, fixer and reviewer run Cursor Auto, which bills at the list price of whatever model each request is routed to. Auto routing and the Cursor Token Rate for third-party models are not modelled.\n\n**Engineer-hours saved** is a model, not a measurement: merged tickets × the Hours / ticket variable (default 4 h). Change the variable to change the model.",
+            "content": "July 0.2.20 dropped `cursor.cost.usage`; 0.2.25 still emits no USD cost metric and no `cursor.model.name` / `agent_sdk.cost_usd` on new turns. Cost here is tokens × the hidden price variables (USD per 1M tokens, [Cursor list prices](https://cursor.com/docs/models-and-pricing), retrieved 2026-10-03), by design, not a workaround for a late estimate. Defaults are Grok 4.6 Fast, the desk's and triage's model: $4 input, $1 cache read, $12 output; reasoning $0 because reasoning tokens are counted inside output. Uncached input is priced at the input price and cache reads once at the cache price. Historical `cursor_cost_usage_USD_total` series, if still in the store, are unused.\n\nThe planner, worker, fixer and reviewer run Cursor Auto, which bills at the list price of whatever model each request is routed to. Auto routing and the Cursor Token Rate for third-party models are not modelled.\n\n**Engineer-hours saved** is a model, not a measurement: merged tickets × the Hours / ticket variable (default 4 h). Change the variable to change the model.",
             "mode": "markdown"
           },
           "title": "Estimate, not billing",
@@ -6353,7 +6353,7 @@
             "type": "prometheus",
             "uid": "grafanacloud-prom"
           },
-          "description": "One row per slug. Input (gross) is input as reported: gross on a host turn, net of cache reads on a cloud turn; Uncached is decided per series (input - cache_read on a gross series, the whole input on a net one). All six factory slugs are always listed; an idle slug shows 0. Only factory-desk, factory-planner and factory-security-reviewer run model turns; the other slugs show 0. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
+          "description": "One row per slug. Input (gross) is input as reported: gross on a host turn, net of cache reads on a cloud turn; Uncached is decided per series (input - cache_read on a gross series, the whole input on a net one). All six factory slugs are always listed; an idle slug shows 0. Only factory-desk, factory-planner and factory-security-reviewer run model turns; the other slugs show 0. ESTIMATE, not billing: tokens × the price variables (USD per 1M tokens, Cursor list prices from https://cursor.com/docs/models-and-pricing, retrieved 2026-10-03; default Grok 4.6 Fast: $4 input, $1 cache read, $12 output, reasoning $0 because it is inside output). Uncached input is priced at the input price and cache reads once at the cache price. Input has two shapes on this metric and no label tells them apart: a host turn (desk, triage, the planner before #227) reports it gross (cache reads inside it), a cloud turn (the planner since #227, the worker since #229) reports it net of cache reads. Uncached input is decided per series before any sum, as July's own turn-cost.js toCatalogDisjointUsage does: input - cache_read where cache_read <= input (gross), the whole input where cache_read > input (net) or where there is no cache_read series. A cloud series whose input happens to reach its cache reads is read as gross and undercounted by them; one series (one process life, one session, one ticket) that mixes local and cloud turns is classified as a whole. July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label on turn.completed. Spend here is always tokens × the price variables, not an invoice and not July's old cost counter. So one price set is applied to every slug. Hosts on Cursor Auto bill at the list price of whatever model each request was routed to (Grok 4.6 $2/$0.5/$6, Claude Opus 5.5 $4/$0.20/$20); neither Auto routing nor the Cursor Token Rate for third-party models is modelled. Built from token counters, so it is approximate like them. Counter totals can read high after a host changes instance id; Loki/Tempo are the reference. Set var-price_input (and the other price_* variables) in the URL or Settings → Variables.",
           "fieldConfig": {
             "defaults": {
               "custom": {
@@ -8105,10 +8105,10 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "datasource",
+            "uid": "-- Mixed --"
           },
-          "description": "p95 of July's agent_sdk.hosted_execution.duration_ms over 15-minute windows, phase=\"total\" only (the whole execution; the other four phases are its parts). The metric also keeps channel_kind, delivery_surface and outcome. Quantiles interpolate inside histogram buckets, so at low volume p95 reads as the upper edge of the bucket it falls in (\"≤ that edge\"), not an exact value.",
+          "description": "p95 of the agent_sdk.turn root span's duration per slug over 15-minute windows, from Tempo (TraceQL quantile_over_time on span durations, so it reads past 10 s, unlike July's agent_sdk.hosted_execution.duration_ms histogram whose default buckets stop at 10 s). July 0.2.25 has no span for the whole hosted execution; the turn is the execution's work, so executions that run no turn (webhook-only deliveries) are not in it. Tempo computes the quantile on exponential (power-of-two) duration buckets, so a value can sit up to 2x above the slowest real span at low volume; the exemplar dots link to the actual traces. Always the last 24 h (Tempo's TraceQL metrics limit is 25 h). All six factory slugs are always listed; an idle slug shows 0.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8130,7 +8130,7 @@
               },
               "decimals": 0,
               "noValue": "No hosted execution in range. Widen the time range.",
-              "unit": "suffix: s"
+              "unit": "s"
             },
             "overrides": [
               {
@@ -8140,26 +8140,6 @@
                     "op": "eq",
                     "reducer": "allIsNull",
                     "value": 1
-                  }
-                },
-                "properties": [
-                  {
-                    "id": "custom.hideFrom",
-                    "value": {
-                      "legend": true,
-                      "tooltip": true,
-                      "viz": true
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byValue",
-                  "options": {
-                    "op": "eq",
-                    "reducer": "sum",
-                    "value": 0
                   }
                 },
                 "properties": [
@@ -8288,27 +8268,156 @@
           "targets": [
             {
               "datasource": {
+                "type": "tempo",
+                "uid": "grafanacloud-traces"
+              },
+              "filters": [],
+              "limit": 50,
+              "metricsQueryType": "range",
+              "query": "{ resource.service.namespace = \"software-factory\" && resource.service.name =~ \"${service:pipe}\" && name = \"agent_sdk.turn\" } | quantile_over_time(duration, .95) by (resource.service.name)",
+              "queryType": "traceql",
+              "refId": "A",
+              "step": "15m",
+              "tableType": "spans"
+            },
+            {
+              "datasource": {
                 "type": "prometheus",
                 "uid": "grafanacloud-prom"
               },
               "editorMode": "code",
-              "expr": "((histogram_quantile(0.95, sum by (le, service_name) ((clamp_min(max_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${service:pipe}\", phase=\"total\"}[$__interval] offset -$__interval) - last_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${service:pipe}\", phase=\"total\"}[1d]) or max_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${service:pipe}\", phase=\"total\"}[$__interval] offset -$__interval), 0))))) >= 0) / 1000",
+              "expr": "((absent(vector(1))) or sum by (service_name) (label_replace((label_replace(vector(0), \"service_name\", \"factory-desk\", \"\", \"\") or label_replace(vector(0), \"service_name\", \"factory-planner\", \"\", \"\") or label_replace(vector(0), \"service_name\", \"factory-worker\", \"\", \"\") or label_replace(vector(0), \"service_name\", \"factory-pr-autofixer\", \"\", \"\") or label_replace(vector(0), \"service_name\", \"factory-security-reviewer\", \"\", \"\") or label_replace(vector(0), \"service_name\", \"factory-triage-jira\", \"\", \"\")), \"pick\", \"yes\", \"service_name\", \"${service:regex}\") and on(pick) label_replace(vector(1), \"pick\", \"yes\", \"\", \"\")))",
               "instant": false,
+              "interval": "15m",
               "legendFormat": "{{service_name}}",
               "range": true,
-              "refId": "A"
+              "refId": "B"
             }
           ],
+          "timeFrom": "24h",
           "title": "Hosted execution p95 by service (total)",
-          "transformations": [],
+          "transformations": [
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": ".*(factory-[a-z-]+).*",
+                "renamePattern": "$1"
+              }
+            },
+            {
+              "id": "joinByField",
+              "options": {
+                "mode": "outer"
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-desk",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-desk"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-planner",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-planner"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-worker",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-worker"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-pr-autofixer",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-pr-autofixer"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-security-reviewer",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-security-reviewer"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "p95 factory-triage-jira",
+                "mode": "reduceRow",
+                "reduce": {
+                  "include": [
+                    "factory-triage-jira"
+                  ],
+                  "reducer": "max"
+                },
+                "replaceFields": false
+              }
+            },
+            {
+              "id": "filterFieldsByName",
+              "options": {
+                "include": {
+                  "pattern": "^(Time|time|p95 .*)$"
+                }
+              }
+            },
+            {
+              "id": "renameByRegex",
+              "options": {
+                "regex": "^p95 (.*)$",
+                "renamePattern": "$1"
+              }
+            }
+          ],
           "type": "timeseries"
         },
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "tempo",
+            "uid": "grafanacloud-traces"
           },
-          "description": "How long July's hosted executions took (agent_sdk.hosted_execution.duration_ms, phase=\"total\"): one column per bucket, one row per histogram bucket (100 ms to 30 min, #220); the more executions, the more solid the blue, on a fixed scale from 0. One panel per slug that runs hosted executions. Only VMs on #220's buckets are counted: a VM still on the old OTel default buckets (top edge 10 s) is left out until it is redeployed, because its slow runs would land in the > 30 min row. Every row is padded with zeros over the range so the cells sit at the right times. Counted per bucket with counter_inc and the same one-step look-ahead as the p95 line above. Some of these histogram series have two writers (a restored VM rewriting its series), so the quantile is noisy, and no panel uses the _sum/_count mean, which those series make unreliable.",
+          "description": "How long the hosted executions' turns took: agent_sdk.turn root span durations from Tempo, one column per 15 minutes, one row per power-of-two duration bucket (no 10 s cap, unlike July's hosted-execution histogram); the more turns, the more solid the blue. Selected slugs together. Always the last 24 h (Tempo's TraceQL metrics limit is 25 h).",
           "fieldConfig": {
             "defaults": {
               "custom": {
@@ -8321,7 +8430,7 @@
                   "type": "linear"
                 }
               },
-              "noValue": "No hosted executions in range. Widen the time range or pick All services."
+              "noValue": "No turns in the last 24 h. Check that Tempo receives the slugs' traces."
             },
             "overrides": []
           },
@@ -8332,8 +8441,6 @@
             "y": 78
           },
           "id": 65,
-          "interval": "$bucket",
-          "maxPerRow": 2,
           "options": {
             "calculate": false,
             "cellGap": 1,
@@ -8360,7 +8467,7 @@
               "show": true
             },
             "rowsFrame": {
-              "layout": "le"
+              "layout": "auto"
             },
             "showValue": "never",
             "tooltip": {
@@ -8372,27 +8479,27 @@
               "axisPlacement": "left",
               "decimals": 0,
               "reverse": false,
-              "unit": "ms"
+              "unit": "s"
             }
           },
-          "repeat": "exec_service",
-          "repeatDirection": "h",
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
-                "uid": "grafanacloud-prom"
+                "type": "tempo",
+                "uid": "grafanacloud-traces"
               },
-              "editorMode": "code",
-              "expr": "sum by (le) ((clamp_min(max_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${exec_service}\", phase=\"total\", le=~\"100|100\\\\.0|250|250\\\\.0|500|500\\\\.0|1000|1000\\\\.0|2500|2500\\\\.0|5000|5000\\\\.0|10000|10000\\\\.0|15000|15000\\\\.0|20000|20000\\\\.0|30000|30000\\\\.0|60000|60000\\\\.0|120000|120000\\\\.0|180000|180000\\\\.0|300000|300000\\\\.0|450000|450000\\\\.0|600000|600000\\\\.0|900000|900000\\\\.0|1800000|1\\\\.8e\\\\+06|\\\\+Inf\"}[$__interval] offset -$__interval) - last_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${exec_service}\", phase=\"total\", le=~\"100|100\\\\.0|250|250\\\\.0|500|500\\\\.0|1000|1000\\\\.0|2500|2500\\\\.0|5000|5000\\\\.0|10000|10000\\\\.0|15000|15000\\\\.0|20000|20000\\\\.0|30000|30000\\\\.0|60000|60000\\\\.0|120000|120000\\\\.0|180000|180000\\\\.0|300000|300000\\\\.0|450000|450000\\\\.0|600000|600000\\\\.0|900000|900000\\\\.0|1800000|1\\\\.8e\\\\+06|\\\\+Inf\"}[1d]) or max_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${exec_service}\", phase=\"total\", le=~\"100|100\\\\.0|250|250\\\\.0|500|500\\\\.0|1000|1000\\\\.0|2500|2500\\\\.0|5000|5000\\\\.0|10000|10000\\\\.0|15000|15000\\\\.0|20000|20000\\\\.0|30000|30000\\\\.0|60000|60000\\\\.0|120000|120000\\\\.0|180000|180000\\\\.0|300000|300000\\\\.0|450000|450000\\\\.0|600000|600000\\\\.0|900000|900000\\\\.0|1800000|1\\\\.8e\\\\+06|\\\\+Inf\"}[$__interval] offset -$__interval), 0)) and ignoring (le) max_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${exec_service}\", phase=\"total\", le=~\"1800000|1\\\\.8e\\\\+06\"}[$__interval] offset -$__interval)) or sum by (le) (0 * last_over_time(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${exec_service}\", phase=\"total\", le=~\"100|100\\\\.0|250|250\\\\.0|500|500\\\\.0|1000|1000\\\\.0|2500|2500\\\\.0|5000|5000\\\\.0|10000|10000\\\\.0|15000|15000\\\\.0|20000|20000\\\\.0|30000|30000\\\\.0|60000|60000\\\\.0|120000|120000\\\\.0|180000|180000\\\\.0|300000|300000\\\\.0|450000|450000\\\\.0|600000|600000\\\\.0|900000|900000\\\\.0|1800000|1\\\\.8e\\\\+06|\\\\+Inf\"}[$__range] @ end()))",
-              "format": "heatmap",
-              "instant": false,
-              "legendFormat": "{{le}}",
-              "range": true,
-              "refId": "A"
+              "filters": [],
+              "limit": 50,
+              "metricsQueryType": "range",
+              "query": "{ resource.service.namespace = \"software-factory\" && resource.service.name =~ \"${service:pipe}\" && name = \"agent_sdk.turn\" } | histogram_over_time(duration)",
+              "queryType": "traceql",
+              "refId": "A",
+              "step": "15m",
+              "tableType": "spans"
             }
           ],
-          "title": "Exec duration: $exec_service",
+          "timeFrom": "24h",
+          "title": "Exec duration (Tempo, agent_sdk.turn)",
           "type": "heatmap"
         }
       ],
@@ -21490,38 +21597,6 @@
         ],
         "query": "0",
         "type": "textbox"
-      },
-      {
-        "allValue": ".*",
-        "current": {
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "grafanacloud-prom"
-        },
-        "definition": "label_values(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${service:pipe}\", le=~\"1800000|1\\\\.8e\\\\+06\"}, service_name)",
-        "description": "Selected slugs that report hosted executions on #220's buckets (the heatmap repeats over these). Refreshed on dashboard load: with refresh on time change, Grafana Cloud (12.2+; verified on 13.3.0) repeats the hidden default (All) into one empty panel inside the collapsed Latency row.",
-        "hide": 2,
-        "includeAll": true,
-        "label": "Slugs with hosted executions",
-        "multi": true,
-        "name": "exec_service",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(agent_sdk_hosted_execution_duration_ms_milliseconds_bucket{service_namespace=\"software-factory\", service_name=~\"${service:pipe}\", le=~\"1800000|1\\\\.8e\\\\+06\"}, service_name)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "sort": 1,
-        "type": "query"
       }
     ]
   },

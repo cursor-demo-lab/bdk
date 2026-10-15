@@ -45,7 +45,7 @@ function manualTimer() {
   return { every: (_ms: number, tick: () => void) => (ticks.push(tick), () => void ticks.splice(ticks.indexOf(tick), 1)), fire: () => ticks.forEach((tick) => tick()), ticks };
 }
 
-// Characterizes @cursor/july 0.2.24 (docs/july-users-info-cache.md). When an
+// Characterizes @cursor/july 0.2.25 (docs/july-users-info-cache.md). When an
 // upgrade fails one of these, July has changed its cache and the guard below
 // may be removable.
 test("July 0.2.24 keeps every users.info record and verdict with no expiry", async () => {

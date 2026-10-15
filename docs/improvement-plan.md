@@ -31,7 +31,7 @@ rather than relying on the `cursorAccount` subscription.
   through one pure `agent/lib/config.ts`, and refuses to act when the
   scope is unset, with a message that names the variable.
 - `npm test` and `npm run check` pass in all five projects, and
-  `npx -p @cursor/july@0.2.24 agent-sdk validate --dir <project>` passes in each.
+  `npx -p @cursor/july@0.2.25 agent-sdk validate --dir <project>` passes in each.
 - The triage to planner handoff runs inline in `record_triage`, not in a
   hook, and `triage-jira` has no memory hook.
 - The desk claims `announced/<KEY>` before it posts, recovers a Slack thread
@@ -176,7 +176,7 @@ conflicting.
 1. Merge the three branches. The ownership above means no file has two
    authors; a conflict is a worker outside its slice.
 2. In each project: `npm install`, `npm test`, `npm run check`,
-   `npx -p @cursor/july@0.2.24 agent-sdk validate --dir .`.
+   `npx -p @cursor/july@0.2.25 agent-sdk validate --dir .`.
 3. Run the done predicate's grep.
 4. Apply the doc deltas: `plan.md` (secrets table, phases), `edits.md`
    (template edit points), each README's environment section,

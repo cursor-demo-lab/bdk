@@ -8,7 +8,7 @@ import { cloudPlanning } from "../lib/checkout.js";
 // caller's `autoCreatePR`, `repos`, `env`, and `envVars` would win over the
 // agent's `cloud: { autoCreatePR: false }` and the planning send's sandbox
 // repos, so an admitted caller could turn auto PR back on or point the turn
-// at another repo. How each shape is closed (July 0.2.24):
+// at another repo. How each shape is closed (July 0.2.25):
 // - Managed hosting: the `/v1/session*` routes are not mounted on a hosted v2
 //   guest. A session start arrives as an `agentsdk.session` admission whose
 //   payload parser rejects any field but message/dryRun/asOf/modelConfig/

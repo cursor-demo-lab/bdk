@@ -393,19 +393,19 @@ Each host exports traces, metrics, and logs to Grafana Cloud (the
 `<GRAFANA_STACK>` stack, its gateway `https://otlp.example.com/otlp`, in
 code). `<slug>/agent/otel.ts` hands July a config (identical copies; the
 gateway URL is a constant in `agent/lib/factory-otel.ts`), and July builds the
-trace and log providers and exporters. Metrics go through one small cumulative
-meter provider the factory registers (`agent/lib/factory-metrics.ts`), because
-July's own metric exporters are DELTA and Grafana Cloud answers a DELTA sum
-with HTTP 400. A slug exports once it has the one secret,
+trace, meter, and log providers and exporters. Grafana Cloud answers July's
+default DELTA metrics with HTTP 400, so the resolver in `agent/otel.ts` defaults
+July's `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` to `cumulative`. A
+slug exports once it has the one secret,
 `OTEL_EXPORTER_OTLP_HEADERS` (`Authorization=Basic base64(<instance id>:<glc_
 token>)`, a literal space after `Basic`); unset, the config has no exporter
-and the metric exporter sends nothing. Setting or rotating it needs no
-redeploy: July reads it again on each hosted request and the metric exporter
-reads it on each export
+and nothing is sent. Setting or rotating it needs no
+redeploy: July reads it again on each hosted request and its
+exporters read it on each export
 ([`docs/factory-deployment.md`](docs/factory-deployment.md#11-opentelemetry-export-grafana-cloud)).
-Unsetting it stops metrics at once and the traces and logs of pods that start
-afterwards; a pod that already exports those keeps going until it is replaced
-(the kill switch section says how to stop it at once). Every Jira, Slack, and
+Unsetting it does not stop a pod that already exports, which keeps going until
+it is replaced; pods that start afterwards export nothing (the kill switch
+section says how to stop it at once). Every Jira, Slack, and
 GitHub delivery, reminder, schedule, and cloud-agent launch gets a `factory.*`
 span with its kind, outcome, and ticket key. Each is a new root span, in a
 trace of its own and linked to the inbound request's span: Cursor's backend
@@ -415,11 +415,9 @@ parent is not recorded. Metrics are July's counters and histograms plus
 process life; logs are July's session events and the factory's console lines
 (`agent/lib/console-otel.ts`, through July's global logger). User prompts and
 tool content are included, so Grafana access is the only control on them. July
-flushes its trace and log providers after each hosted delivery, at most 1 s;
-the meter provider exports on its own 10 s timer, and also when a turn ends
-(`agent/hooks/metrics-flush.ts`) and when the last open factory span of a
-delivery ends (`traceFactory`). July 0.2.24 starts no
-`agent_sdk.http` span for the first request of a process life.
+flushes its trace, meter, and log providers after each hosted delivery, at most
+1 s. July 0.2.25 starts no `agent_sdk.http` span for the first request of a
+process life.
 Setup, Grafana access, and queries:
 [`docs/factory-deployment.md`](docs/factory-deployment.md#11-opentelemetry-export-grafana-cloud);
 what the export relies on in July, and what it asks for upstream:
@@ -466,7 +464,7 @@ node scripts/doctor.mjs
 mise run check && mise run test && mise run validate
 
 SHA=$(git rev-parse HEAD)
-D="npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref $SHA --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>"
+D="npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref $SHA --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>"
 $D --dir triage-jira       --slug factory-triage-jira
 $D --dir planner           --slug factory-planner
 $D --dir factory-worker    --slug factory-worker
@@ -477,8 +475,8 @@ $D --dir security-reviewer --slug factory-security-reviewer
 
 - Node 22.18 or later, never Bun. All six hosts (`factory-desk`, `planner`,
   `factory-worker`, `triage-jira`, `pr-autofixer`, `security-reviewer`) pin
-  `@cursor/july` 0.2.24. One slug's deploy, in general form:
-  `npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team id>`.
+  `@cursor/july` 0.2.25. One slug's deploy, in general form:
+  `npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team id>`.
 - `--ref` is the full 40-character SHA of a pushed commit. One slug per
   `deploy`. Every slug gets `--cursor-events-repo cursor-demo-lab/marsbank`
   and `--team <CURSOR_TEAM_ID>`: that flag is the SCM event watch list only (not
@@ -486,7 +484,7 @@ $D --dir security-reviewer --slug factory-security-reviewer
   subscription. Details:
   [`docs/factory-deployment.md`](docs/factory-deployment.md#hard-rules).
   Redeploy steps: [`docs/factory-deployment.md`](docs/factory-deployment.md#redeploy).
-- The deploy CLI version (`@cursor/july@0.2.24` above) must equal the
+- The deploy CLI version (`@cursor/july@0.2.25` above) must equal the
   version the hosts install (`factory.json`, each `package.json` and
   lockfile). From 0.2.13 the CLI writes the desk's `hop-watch` schedule
   into the deploy manifest and the runtime stops registering it itself,
@@ -496,6 +494,8 @@ $D --dir security-reviewer --slug factory-security-reviewer
 - A rollback from 0.2.18 to 0.2.14 is safe: the checkpoint and kv code is
   byte-identical. A 0.2.13 rollback still cannot restore a conversation
   0.2.14 re-packed: [`docs/factory-deployment.md`](docs/factory-deployment.md#bdk-0222-upgrade).
+- Upgrade and rollback notes for 0.2.25:
+  [`docs/factory-deployment.md`](docs/factory-deployment.md#bdk-0225-upgrade).
 - Deploy with a credential for <CURSOR_TEAM_NAME> (team `CURSOR_API_KEY` or your own
   `agent-sdk login`), never a service account. The runbook says not to
   unset `CURSOR_API_KEY` for this team.
@@ -514,7 +514,7 @@ $D --dir security-reviewer --slug factory-security-reviewer
   production TLSSN, marsbank, or `#mars-eng-intake`
   ([`docs/factory-deployment.md`](docs/factory-deployment.md#10-staging-slugs)).
 - Reaction approvals need the Factory Slack app on a 0.2.11-or-later manifest
-  once: `npx -y -p @cursor/july@0.2.24 agent-sdk slack manifest --dir factory-desk
+  once: `npx -y -p @cursor/july@0.2.25 agent-sdk slack manifest --dir factory-desk
   --channel-posts --env prod --print` adds the `reaction_added` event and
   the `reactions:read` scope. Apply it through the v2 wizard the app was
   minted with (not `slack create`, which still drafts v1 on this team),
@@ -523,7 +523,7 @@ $D --dir security-reviewer --slug factory-security-reviewer
 - Read hosted logs with `logs --prod` (works on v2 since 0.2.11):
 
   ```bash
-  S="npx -y -p @cursor/july@0.2.24 agent-sdk"
+  S="npx -y -p @cursor/july@0.2.25 agent-sdk"
   $S logs --prod --slug factory-desk --team <CURSOR_TEAM_ID>                # follow recent sessions
   $S logs --prod --slug factory-desk --team <CURSOR_TEAM_ID> --once --json  # print once, as JSON
   $S session ses_... --prod --slug factory-desk --team <CURSOR_TEAM_ID>     # one session
@@ -604,7 +604,7 @@ set of `@opentelemetry/*` versions and one copy of `@opentelemetry/api`.
 
 Live checks, not in CI:
 
-- `npx -p @cursor/july@0.2.24 agent-sdk eval --dir <project>` runs the model-turn
+- `npx -p @cursor/july@0.2.25 agent-sdk eval --dir <project>` runs the model-turn
   evals and needs a Cursor credential:
   - `factory-desk/evals/desk.eval.ts` and `gates.eval.ts`
   - `triage-jira/evals/triage.eval.ts`
@@ -654,16 +654,16 @@ Live checks, not in CI:
   run's conclusion.
 - Merges are human only; there is no auto-merge path.
 
-## BDK 0.2.24 notes
+## BDK 0.2.25 notes
 
-All six projects pin `@cursor/july` `0.2.24` exactly, with no caret
+All six projects pin `@cursor/july` `0.2.25` exactly, with no caret
 (`factory.json`, each host's `package.json` and lockfile, and the deploy CLI),
 and the desk and the worker pin `@cursor/sdk` `1.0.37`, the version July
 pins. `zod` is a peer dependency of July from 0.2.24, so each host declares
-`zod` `^3.25.0`. What changes in operation (July builds the trace and log
-providers, the factory keeps one cumulative meter provider, no `agent_sdk.http`
-span on a process's first request) and the rollback note are in
-[`docs/factory-deployment.md`](docs/factory-deployment.md#bdk-0224-upgrade).
+`zod` `^3.25.0`. What changes in operation (July builds the meter provider too,
+with `agent/otel.ts` defaulting its temporality to cumulative; the factory's own
+meter provider and flushes are gone) and the rollback note are in
+[`docs/factory-deployment.md`](docs/factory-deployment.md#bdk-0225-upgrade).
 The package ships two bins, `bdk` and `agent-sdk`; they are the same CLI.
 These docs use `agent-sdk`.
 

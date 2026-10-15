@@ -11,11 +11,11 @@ Design and the six-agent factory it belongs to:
 # The Jira host connection means call/eval/serve need a signed-in host;
 # validate, info, check, test do not.
 npm run check && npm test
-npx -p @cursor/july@0.2.24 agent-sdk validate --dir .
-npx -p @cursor/july@0.2.24 agent-sdk info --dir . --json
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --tag smoke
-npx -p @cursor/july@0.2.24 agent-sdk serve --dir . --dev
+npx -p @cursor/july@0.2.25 agent-sdk validate --dir .
+npx -p @cursor/july@0.2.25 agent-sdk info --dir . --json
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --tag smoke
+npx -p @cursor/july@0.2.25 agent-sdk serve --dir . --dev
 ```
 
 Run the CLI under Node, never Bun. The desk has no peer connections, so
@@ -876,31 +876,25 @@ it serves and evals from this directory on its own.
   every tool a declared write (July 0.2.12+ retries a read-effect tool on
   an error text with a bare 429/502/503/504 in it, a Jira key like
   `MARS-503` included), and forbids `needsApproval`. The shared `verify-webhook.ts`, `kv-verified.ts`,
-  `claim-lease.ts`, `ops-funnel.ts`, `factory-otel.ts`, `factory-metrics.ts`,
+  `claim-lease.ts`, `ops-funnel.ts`, `factory-otel.ts`,
   and `console-otel.ts` are tested here for every project that copies them.
-- OTel (`agent/otel.ts`, `lib/factory-otel.ts`, `lib/factory-metrics.ts`,
+- OTel (`agent/otel.ts`, `lib/factory-otel.ts`,
   `lib/console-otel.ts`, all shared by every host;
   `../docs/factory-deployment.md` section 11, `../docs/july-otel-upstream.md`):
   `agent/otel.ts` hands July a plain config (`factoryOtelConfig`: the slug as
-  `service.name`, the namespace and stage resource attributes, one OTLP
-  exporter for traces and logs while `OTEL_EXPORTER_OTLP_HEADERS` is set), and
-  July builds the tracer and logger providers, registers them globally, and
-  flushes them after each hosted delivery. Metrics are the one exception:
-  July's metric exporters are DELTA and Grafana Cloud answers a DELTA sum with
-  HTTP 400, so `lib/factory-metrics.ts` registers one cumulative meter provider
-  (header read on each export, one `service.instance.id` per process life, one
-  View for July's hosted-execution buckets) before July's `startServer`, and
-  July adopts it. Factory spans, counters, and logs go through the global
-  `@opentelemetry/api` (`trace.getTracer`, `metrics.getMeter`,
-  `logs.getLogger`); no other code here may call `setGlobal*Provider` or
-  construct a provider, sampler, exporter, or View. No rebase. July's flush covers only the
-  providers it built, so `agent/hooks/metrics-flush.ts` flushes the factory's
-  provider at `session.waiting|completed|failed` (never `turn.completed`: July's
-  collector records the turn's usage after hooks run). Work with no turn is
-  flushed by `traceFactory` when the last open factory span of its delivery
-  ends (`registerFactoryFlush`, set by `installFactoryMeter`: `factory-metrics.ts`
-  imports `factory-otel.ts`, not the reverse); a `waitUntil` wake is a child span
-  that outlives the delivery span, so its end is the flush.
+  `service.name`, the namespace, stage and slug resource attributes plus one
+  `service.instance.id` per process life, one OTLP exporter for traces, metrics
+  and logs while `OTEL_EXPORTER_OTLP_HEADERS` is set), and July builds the
+  tracer, meter and logger providers, registers them globally, and flushes
+  them after each hosted delivery. Grafana Cloud rejects July's default DELTA
+  metrics, so the resolver in `agent/otel.ts` defaults
+  `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE` to `cumulative` on each
+  resolve (an operator's value wins). Factory spans, counters, and logs go
+  through the global `@opentelemetry/api` (`trace.getTracer`,
+  `metrics.getMeter`, `logs.getLogger`); no other code here may call
+  `setGlobal*Provider` or construct a provider, sampler, exporter, or View. No
+  rebase and no factory flush: July's flush after each hosted delivery covers
+  all three providers.
   `../scripts/otel-version-parity.test.mjs` holds every host's
   `@opentelemetry/*` versions to one set, satisfying July's declared ranges,
   with exactly one copy of `@opentelemetry/api` in each lockfile: a second
@@ -919,11 +913,11 @@ it serves and evals from this directory on its own.
   on in the config; Grafana access is the only control.
 - OTel tests: `factory-otel.test.ts` (config, spans, notes),
   `factory-otel.ticket.test.ts` (ticket label, merged counter),
-  `factory-metrics.test.ts` (cumulative export, headers per export, instance
-  id, buckets), `console-otel.test.ts` (console bridge, Node warnings, diag
-  guard), and `july-otel.test.ts` (July's real runtime exporting through
-  `agent/otel.ts` to a local collector; it fails when a July upgrade changes a
-  behaviour the design relies on, and says what to do).
+  `console-otel.test.ts` (console bridge, Node warnings, diag guard), and
+  `july-otel.test.ts` (July's real runtime exporting through `agent/otel.ts`
+  to a local collector: cumulative metrics, the instance id, July's own flush;
+  it fails when a July upgrade changes a behaviour the design relies on, and
+  says what to do).
 - A kv failure the code ignores goes through `warnKv(site, error)`
   (`agent/lib/ops-funnel.ts`), never a silent `.catch(…)`, `.then(ok,
   …)`, dropped `Promise.allSettled`, or empty `catch`:
@@ -991,5 +985,5 @@ it serves and evals from this directory on its own.
 
 - Package loop: `node_modules/@cursor/july/AGENTS.md`
 - Skills: `node_modules/@cursor/july/skills/` (`create-agent`, `deploy`, `evals`, `hillclimb`, `debug`)
-- Docs: `npx -p @cursor/july@0.2.24 agent-sdk docs`
+- Docs: `npx -p @cursor/july@0.2.25 agent-sdk docs`
 - LLM docs index: `node_modules/@cursor/july/dist/docs/llms.txt`

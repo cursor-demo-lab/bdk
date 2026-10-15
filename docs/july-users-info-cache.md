@@ -1,6 +1,6 @@
 # July `users.info` cache: unbounded, never refreshed, keyed by object identity
 
-Upstream issue for `@cursor/july` 0.2.11, still open in 0.2.18 (`dist/channels/slack/user-info.js` is byte-identical from 0.2.13 through 0.2.18 and ships in all six hosts here). Our mitigation is in `factory-desk/agent/lib/july-user-cache.ts` and `factory-desk/agent/lib/originator.ts` (`hostSlackTransport`).
+Upstream issue for `@cursor/july`. Still open in 0.2.25: `dist/channels/slack/user-info.js`, `external-policy.js`, `sender-name.js`, and `self-identity.js` are byte-identical in 0.2.23, 0.2.24 and 0.2.25 (and were in 0.2.22). Our mitigation is in `factory-desk/agent/lib/july-user-cache.ts` and `factory-desk/agent/lib/originator.ts` (`hostSlackTransport`).
 
 ## Location
 

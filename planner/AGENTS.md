@@ -7,11 +7,11 @@ Design and the factory it belongs to: `../docs/plan.md` (planning stage).
 ## Loop
 
 ```bash
-npx -p @cursor/july@0.2.24 agent-sdk validate --dir .
-npx -p @cursor/july@0.2.24 agent-sdk info --dir . --json
-npx -p @cursor/july@0.2.24 agent-sdk call record_plan --dir . --input '{ ... }'   # see README
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir .                                  # needs CURSOR_API_KEY; README "Evals"
+npx -p @cursor/july@0.2.25 agent-sdk validate --dir .
+npx -p @cursor/july@0.2.25 agent-sdk info --dir . --json
+npx -p @cursor/july@0.2.25 agent-sdk call record_plan --dir . --input '{ ... }'   # see README
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir .                                  # needs CURSOR_API_KEY; README "Evals"
 npm run check && npm test
 ```
 
@@ -206,7 +206,7 @@ that resolve that edge run from the factory root with the desk mounted;
   line carries the outcome and message only (`model: "unknown"`). A
   completed turn's line carries its tokens when the turn reported usage
   and, only when a test injects `data.cost`, `model`, `costUsd`, and
-  `pricedFrom`. Live July 0.2.24 never stamps cost on `turn.completed`, so
+  `pricedFrom`. Live July 0.2.25 never stamps cost on `turn.completed`, so
   `model` is `unknown` and the cost fields are absent. Tokens still land
   on the event. The durable cost is July's `GET /v1/session/:id/cost`
   (`sessionCost`).
@@ -336,10 +336,8 @@ The status payload itself still needs `changelog.items` with
   turn is the `plan` channel session it opens.
 - Add npm deps. Stick to what `@cursor/july` already ships.
   The `@opentelemetry/*` packages are July's own, pinned to the versions it
-  installs. Runtime code needs `@opentelemetry/api`, `@opentelemetry/api-logs`, and
-  the metrics SDK packages `lib/factory-metrics.ts` uses (`core`, `resources`,
-  `sdk-metrics`, `exporter-metrics-otlp-proto`); the trace and log SDK packages
-  are devDependencies for tests.
+  installs. Runtime code needs only `@opentelemetry/api` and `@opentelemetry/api-logs`;
+  the SDK packages are devDependencies for tests.
 - Require a GitHub PAT for hosted verify. Hosted `search_sandbox` uses
   `ctx.host.github` (cursorAccount pass-through).
 
@@ -347,5 +345,5 @@ The status payload itself still needs `changelog.items` with
 
 - Package loop: `node_modules/@cursor/july/AGENTS.md`
 - Skills: `node_modules/@cursor/july/skills/` (`create-agent`, `deploy`, `evals`, `hillclimb`, `debug`)
-- Docs: `npx -p @cursor/july@0.2.24 agent-sdk docs`
+- Docs: `npx -p @cursor/july@0.2.25 agent-sdk docs`
 - LLM docs index: `node_modules/@cursor/july/dist/docs/llms.txt`

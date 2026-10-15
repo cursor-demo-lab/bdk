@@ -150,15 +150,13 @@ Run the CLI under Node, never Bun.
   threshold rule. Do not add a classifier prompt of its own.
 - Add npm deps on a first cut. Stick to what `@cursor/july` already ships.
   The `@opentelemetry/*` packages are July's own, pinned to the versions it
-  installs. Runtime code needs `@opentelemetry/api`, `@opentelemetry/api-logs`, and
-  the metrics SDK packages `lib/factory-metrics.ts` uses (`core`, `resources`,
-  `sdk-metrics`, `exporter-metrics-otlp-proto`); the trace and log SDK packages
-  are devDependencies for tests.
+  installs. Runtime code needs only `@opentelemetry/api` and `@opentelemetry/api-logs`;
+  the SDK packages are devDependencies for tests.
 - Point `serve` at a parent folder during bring-up. It mounts every sibling.
 
 ## Pointers
 
 - Package loop: `node_modules/@cursor/july/AGENTS.md`
 - Skills: `node_modules/@cursor/july/skills/` (`create-agent`, `deploy`, `evals`, `hillclimb`, `debug`)
-- Docs: `npx -p @cursor/july@0.2.24 agent-sdk docs`
+- Docs: `npx -p @cursor/july@0.2.25 agent-sdk docs`
 - LLM docs index: `node_modules/@cursor/july/dist/docs/llms.txt`

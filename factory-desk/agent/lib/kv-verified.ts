@@ -44,7 +44,7 @@ export const KV_RETRY_PAUSES_MS: readonly number[] = [100, 400];
 export const KV_RETRY_PAUSE_BUDGET_MS = 500;
 
 /**
- * The hosted store's reason codes (July 0.2.24, `STORAGE_RPC_ERROR_CODES` in
+ * The hosted store's reason codes (July 0.2.25, `STORAGE_RPC_ERROR_CODES` in
  * storage-backends/cursor-hosted.js). Each is a refusal a retry cannot fix.
  * Its catch-all `agentsdk_storage_http_error` is not here: it goes by status.
  */
@@ -64,7 +64,7 @@ export const KV_PERMANENT_REASON_CODES: ReadonlySet<string> = new Set([
  * which a retry cannot fix: an empty key (internal/host-kv.js), and hosted
  * storage with no deployment credential or no fetch
  * (storage-backends/cursor-hosted.js). Each pattern is anchored at both
- * ends on July 0.2.24's exact message text, so a reworded message is
+ * ends on July 0.2.25's exact message text, so a reworded message is
  * retried like any other failure with no status.
  */
 export const KV_LOCAL_REFUSALS: readonly RegExp[] = [

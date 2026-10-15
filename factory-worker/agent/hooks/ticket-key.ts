@@ -7,7 +7,7 @@ import { implementIssueKey } from "../lib/implement-turn.js";
 // on its own (factory-otel.ts, "Ticket on token usage": the one approved
 // addition to July's spans; the label is on all of July's metrics and spans for
 // the session, `cursor.tool.calls` included: July's `join` stamps the whole tag
-// bag on every sample (dist/internal/otel/collector.js:619-626) and the factory
+// bag on every sample (dist/internal/otel/collector.js:621-628) and the factory
 // has no metric View). An implement session is pinned to its ticket by the
 // `jira` channel's continuation token (`implement:<KEY>#<changelogId>`,
 // lib/implement-turn.ts), so the key needs no read. Any other session (a

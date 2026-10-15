@@ -8,7 +8,7 @@ import { threadFromSession } from "../lib/threads.js";
 // its own (factory-otel.ts, "Ticket on token usage": the one approved addition
 // to July's spans; the label is on all of July's metrics and spans for the
 // session, `cursor.tool.calls` included: July's `join` stamps the whole tag bag
-// on every sample (dist/internal/otel/collector.js:619-626) and the factory has
+// on every sample (dist/internal/otel/collector.js:621-628) and the factory has
 // no metric View). A desk session is a Slack thread (threads.ts
 // threadFromSession), and the thread's filed tickets are in kv
 // (thread-tickets.ts); the latest one is the turn's ticket. A thread with none
