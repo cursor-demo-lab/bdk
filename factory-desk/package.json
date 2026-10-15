@@ -12,19 +12,16 @@
     "eval:jev-triage": "node --env-file-if-exists=.env.local --env-file-if-exists=../.env.local --import tsx evals/jev-triage/run.ts"
   },
   "dependencies": {
-    "@cursor/july": "0.2.24",
+    "@cursor/july": "0.2.25",
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/api-logs": "0.208.0",
-    "@opentelemetry/core": "^2.11.0",
-    "@opentelemetry/exporter-metrics-otlp-proto": "0.208.0",
-    "@opentelemetry/resources": "2.11.0",
-    "@opentelemetry/sdk-metrics": "2.11.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@cursor/sdk": "1.0.37",
     "@opentelemetry/context-async-hooks": "2.11.0",
     "@opentelemetry/sdk-logs": "0.208.0",
+    "@opentelemetry/sdk-metrics": "2.11.0",
     "@opentelemetry/sdk-trace-base": "2.11.0",
     "@types/node": "^22.14.0",
     "tsx": "^4.23.13",

@@ -38,7 +38,7 @@ Done moves only for a merge by a person (`GitHub type User`, no
 ## How it runs
 
 Hosted v2 (`architecture: "v2"`, `name: "factory-worker"`).
-`@cursor/july` `0.2.24` and `@cursor/sdk` `1.0.37` exactly
+`@cursor/july` `0.2.25` and `@cursor/sdk` `1.0.37` exactly
 (`factory-worker/package.json`).
 The agent stays `runtime: "local"` and declares no `tools` (July refuses
 a cloud turn on an agent that declares them).
@@ -120,10 +120,10 @@ Optional, not in `hosting.secretNames`:
 ## Telemetry
 
 Same OTel files as the other five hosts (`factory-worker/agent/otel.ts`,
-`factory-worker/agent/lib/factory-otel.ts`, `factory-worker/agent/lib/factory-metrics.ts`,
-`factory-worker/agent/lib/console-otel.ts`, held identical by
-`scripts/copies-parity.test.mjs`). July builds the trace and log providers; the
-factory registers one cumulative meter provider.
+`factory-worker/agent/lib/factory-otel.ts`, `factory-worker/agent/lib/console-otel.ts`, held
+identical by `scripts/copies-parity.test.mjs`). July builds the trace, meter and
+log providers; `agent/otel.ts` defaults its metric temporality to cumulative,
+which Grafana Cloud needs.
 The July cloud turn's tokens and cost carry `factory.ticket.key`. An
 `Agent.create` heal is invisible to July. A turn over 60 minutes loses
 its tokens to telemetry (the pod's `CURSOR_API_KEY` is a 60-minute
@@ -136,8 +136,8 @@ Folder `factory-worker`, slug `factory-worker`. From
 ``:
 
 ```bash
-npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir factory-worker --slug factory-worker --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-worker --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref <full 40-char SHA> --dir factory-worker --slug factory-worker --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk logs --prod --slug factory-worker --team <CURSOR_TEAM_ID>
 ```
 
 Jira rule `factory-worker` (transitioned to Approved) POSTs to

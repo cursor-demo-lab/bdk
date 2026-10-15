@@ -44,7 +44,7 @@ test("the channel override wires the gate into onMessage of the built-in http ch
   assert.equal(await httpOverride.onMessage?.("hello", { auth: null }), "hello");
 });
 
-// Pins on the July 0.2.24 behavior the gate and the docs' "no auto PR"
+// Pins on the July 0.2.25 behavior the gate and the docs' "no auto PR"
 // claim rely on. If an upgrade changes either, these fail and the posture
 // must be re-verified (docs/deployment-issues.md issue 24).
 

@@ -1,7 +1,7 @@
 # Software factory on Slack, Jira, and GitHub: docs
 
 Design docs for the APJ GTM teaching factory on Amplitude's original stack.
-Package: `@cursor/july@0.2.24`. Node 22.18+, never Bun. Phases 0 and 1 of
+Package: `@cursor/july@0.2.25`. Node 22.18+, never Bun. Phases 0 and 1 of
 `plan.md` are in the sibling projects of this folder. Phase 2 still
 needs a signed-in host. To set the factory up and run the demo, start
 with [`../README.md`](../README.md); this folder explains the design.
@@ -181,12 +181,12 @@ under `candidates/` as the record of the decision:
 
 ## Conventions in these docs
 
-- Commands are written as `npx -p @cursor/july@0.2.24 agent-sdk <cmd> --dir <slug>`.
+- Commands are written as `npx -p @cursor/july@0.2.25 agent-sdk <cmd> --dir <slug>`.
   0.2.18 ships two bins (`bdk` and `agent-sdk`), so a bare
   `npx @cursor/july <cmd>` fails with "could not determine executable to
   run"; name the bin. After `init`, each project also has `agent-sdk` and
   `bdk` on its own PATH; all spellings are the same CLI. Browse bundled
-  docs with `npx -p @cursor/july@0.2.24 agent-sdk docs` (or
+  docs with `npx -p @cursor/july@0.2.25 agent-sdk docs` (or
   `npx agent-sdk docs` from a project with `@cursor/july` installed).
 - `<owner>/<repo>` is the training sandbox repository. The committed
   value must never be a production repo.

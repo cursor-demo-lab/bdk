@@ -12,7 +12,7 @@ stack, Slack, Jira, and GitHub, for APJ GTM sessions, under constraints
 the sibling did not have:
 
 - A customer SE must be able to reproduce it from
-  `npx -p @cursor/july@0.2.24 agent-sdk init` plus a short glue list, in an afternoon.
+  `npx -p @cursor/july@0.2.25 agent-sdk init` plus a short glue list, in an afternoon.
 - It must honor the July GitHub guide: debounce per PR, persist the buffer
   in `host.kv`, one `pr:owner/repo#N` conversation, keep payloads out of
   wake prompts, decide the repo allowlist explicitly.

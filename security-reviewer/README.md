@@ -42,7 +42,7 @@ deliveries that both arrive before the write can both review.
 
 ## How it runs
 
-Hosted v2. `@cursor/july` `0.2.24` exactly
+Hosted v2. `@cursor/july` `0.2.25` exactly
 (`security-reviewer/package.json`).
 Turns are local (`tools: ["read", "grep"]`, no `cloud` block in
 `security-reviewer/agent/agent.ts`).
@@ -80,10 +80,10 @@ a pull request delivery then fails naming both variables.
 ## Telemetry
 
 Same OTel files as the other five hosts (`security-reviewer/agent/otel.ts`,
-`security-reviewer/agent/lib/factory-otel.ts`, `security-reviewer/agent/lib/factory-metrics.ts`,
-`security-reviewer/agent/lib/console-otel.ts`, held identical by
-`scripts/copies-parity.test.mjs`). July builds the trace and log providers; the
-factory registers one cumulative meter provider.
+`security-reviewer/agent/lib/factory-otel.ts`, `security-reviewer/agent/lib/console-otel.ts`, held
+identical by `scripts/copies-parity.test.mjs`). July builds the trace, meter and
+log providers; `agent/otel.ts` defaults its metric temporality to cumulative,
+which Grafana Cloud needs.
 Export is off until `OTEL_EXPORTER_OTLP_HEADERS` is set.
 
 Every GitHub delivery that reaches `onPullRequest` or `onComment` logs
@@ -100,14 +100,14 @@ Folder `security-reviewer`, slug `factory-security-reviewer`. From
 ``:
 
 ```bash
-npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir security-reviewer --slug factory-security-reviewer --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-security-reviewer --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref <full 40-char SHA> --dir security-reviewer --slug factory-security-reviewer --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk logs --prod --slug factory-security-reviewer --team <CURSOR_TEAM_ID>
 ```
 
 No Jira rule. Read hosted logs:
 
 ```bash
-npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-security-reviewer --team <CURSOR_TEAM_ID> --once --json
+npx -y -p @cursor/july@0.2.25 agent-sdk logs --prod --slug factory-security-reviewer --team <CURSOR_TEAM_ID> --once --json
 ```
 
 ## Tests
@@ -116,9 +116,9 @@ npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-security-revi
 npm test
 npm run check
 npm run validate
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir .
-npx -p @cursor/july@0.2.24 agent-sdk github replay https://github.com/<owner>/<repo>/pull/1 --dir .
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir .
+npx -p @cursor/july@0.2.25 agent-sdk github replay https://github.com/<owner>/<repo>/pull/1 --dir .
 ```
 
 Smoke cases: `security-reviewer/evals/review.eval.ts`

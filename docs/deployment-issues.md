@@ -74,7 +74,7 @@ team. Each hosted app is a **single-slug** v2 deploy:
 
 ```bash
 env -u CURSOR_API_KEY -u CURSOR_SERVICE_ACCOUNT_KEY \
-  npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team>
+  npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref <SHA> --dir <folder> --slug <slug> --cursor-events-repo cursor-demo-lab/marsbank --team <team>
 ```
 
 ### 4. In-process peers fail at startup on managed hosting

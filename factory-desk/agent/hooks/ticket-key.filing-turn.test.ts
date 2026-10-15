@@ -106,7 +106,7 @@ test("the filing turn: July's string output of file_ticket re-tags the turn, and
       ],
       "the filing turn's whole token usage lands on the key filed mid-turn, none of it on `none`",
     );
-    assert.equal(points.some((point) => point.name === "cursor.cost.usage"), false, "the 0.2.24 collector creates no cost counter (otel/collector.js:701-718)");
+    assert.equal(points.some((point) => point.name === "cursor.cost.usage"), false, "the 0.2.25 collector creates no cost counter (otel/collector.js:703-720)");
     assert.deepEqual(byKey("agent_sdk.turn.count"), [["TLSSN-46", 1]]);
     assert.equal(points.some((point) => point.attributes[TICKET_KEY_ATTRIBUTE] === "none"), false, "no sample of the turn is `none`");
     for (const point of points.filter((point) => point.name === "cursor.tool.calls")) {

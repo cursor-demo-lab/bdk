@@ -176,7 +176,7 @@ test("a finished turn whose cost has landed logs cost.model, its cost, and its t
   assert.match(body, /"inputTokens":10/);
 });
 
-// July 0.2.24 never stamps `cost` on live turn.completed; a test that omits
+// July 0.2.25 never stamps `cost` on live turn.completed; a test that omits
 // it matches production.
 test("a finished planning turn whose cost has not landed logs its usage with model unknown and no cost", async () => {
   const lines: string[] = [];

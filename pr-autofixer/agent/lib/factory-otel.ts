@@ -1,20 +1,18 @@
+import { createHash, randomBytes } from "node:crypto";
+import { closeSync, openSync, readSync } from "node:fs";
 import { context, metrics, SpanStatusCode, trace, type Attributes, type Context, type Meter, type Span, type SpanOptions, type Tracer } from "@opentelemetry/api";
 import type { HostOtelApi } from "@cursor/july";
 import type { OtelConfig } from "@cursor/july/otel";
 import { factoryStage } from "./factory-stage.js";
 import { factorySlug } from "./kv-keys.js";
 
-// OpenTelemetry for the factory, on July's own setup for traces and logs.
-// July builds the tracer and logger providers and their OTLP exporters from
-// the config agent/otel.ts hands it (factoryOtelConfig), registers them
-// globally, and flushes them after each hosted delivery. Metrics are the one
-// exception: July hard-codes DELTA temporality on its metric exporters
-// (otel/runtime.js:181) and Grafana Cloud's OTLP endpoint answers 400 to a
-// DELTA sum, so lib/factory-metrics.ts registers one small cumulative meter
-// provider that July then adopts. This file holds no provider: the config,
-// the helpers, and small spans and counters around work that starts no
-// session (Jira, Slack and GitHub deliveries, reminders, schedules,
-// cloud-agent launches), all through the global @opentelemetry/api.
+// OpenTelemetry for the factory, on July's own setup for all three signals.
+// July builds the tracer, meter, and logger providers and their OTLP exporters
+// from the config agent/otel.ts hands it (factoryOtelConfig), registers them
+// globally, and flushes them after each hosted delivery. This file holds no
+// provider: the config, the helpers, and small spans and counters around work
+// that starts no session (Jira, Slack and GitHub deliveries, reminders,
+// schedules, cloud-agent launches), all through the global @opentelemetry/api.
 //
 // The switch is OTEL_EXPORTER_OTLP_HEADERS, the only secret: the endpoint is
 // not secret and lives here (OTEL_EXPORTER_OTLP_ENDPOINT overrides it for a
@@ -70,22 +68,8 @@ export const OTHER_TICKET = "other";
 /** A Jira issue key: a project key (a letter, then up to nine letters or digits), a dash, the issue number. */
 export const JIRA_ISSUE_KEY = /^[A-Z][A-Z0-9]{0,9}-\d{1,9}$/;
 
-/** July's hosted-execution latency histogram (`hosted-execution-latency.js`). */
-export const HOSTED_EXECUTION_DURATION_METRIC = "agent_sdk.hosted_execution.duration_ms";
-
 /** Bucket bounds (ms) for DELIVERY_DURATION_METRIC. The OTel default stops at 10 s, which would put every cloud-agent launch and most background work in its last bucket. */
 export const DELIVERY_DURATION_BUCKETS_MS: readonly number[] = [50, 100, 250, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000];
-
-/**
- * Bucket bounds (ms) for HOSTED_EXECUTION_DURATION_METRIC, 100 ms to 30 min.
- * July creates the histogram with no `advice.explicitBucketBoundaries`, so the
- * OTel default (0 to 10 000 ms) would put the longer hosted executions in
- * +Inf. factory-metrics.ts sets these through one View. The Factory ops panels
- * "Hosted execution p95 by service (total)" and "Exec duration" read them.
- */
-export const HOSTED_EXECUTION_DURATION_BUCKETS_MS: readonly number[] = [
-  100, 250, 500, 1_000, 2_500, 5_000, 10_000, 15_000, 20_000, 30_000, 60_000, 120_000, 180_000, 300_000, 450_000, 600_000, 900_000, 1_800_000,
-];
 
 /** The Grafana Cloud stack's OTLP gateway (<GRAFANA_STACK>, <GRAFANA_REGION>). Not a secret. */
 export const GRAFANA_OTLP_ENDPOINT = "https://otlp.example.com/otlp";
@@ -117,10 +101,7 @@ const CODE = /^[A-Za-z0-9][A-Za-z0-9_.:/#-]{0,63}$/;
 
 const notes = new WeakMap<Span, FactoryNote>();
 const factorySpans = new WeakSet<Span>();
-/** The factory spans of one delivery share one count of spans still open; the one that brings it to zero flushes metrics. */
-type Flight = { open: number };
-const flights = new WeakMap<Span, Flight>();
-const FLUSH = Symbol.for("apj_factory.otel.flush");
+const LIFE = Symbol.for("apj_factory.otel.life");
 const instruments = new WeakMap<Meter, { count: ReturnType<Meter["createCounter"]>; duration: ReturnType<Meter["createHistogram"]>; merged: ReturnType<Meter["createCounter"]> }>();
 
 export function envValue(env: NodeJS.ProcessEnv, name: string): string {
@@ -138,20 +119,55 @@ export function otlpEndpoint(env: NodeJS.ProcessEnv): string {
   return (envValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT") || GRAFANA_OTLP_ENDPOINT).replace(/\/v1\/(traces|metrics|logs)\/?$/i, "").replace(/\/$/, "");
 }
 
+/** 16 bytes read straight from the kernel pool; randomBytes only where it cannot be opened. */
+function kernelBytes(): Buffer {
+  try {
+    const fd = openSync("/dev/urandom", "r");
+    try {
+      const out = Buffer.alloc(16);
+      if (readSync(fd, out, 0, 16, null) === 16) return out;
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    // Not Linux: fall through.
+  }
+  return randomBytes(16);
+}
+
+/**
+ * This process life's `service.instance.id`, drawn on first use. Hosted v2
+ * restores each VM of a slug from one snapshot, so anything the process holds
+ * at the freeze is shared by every clone: the id is drawn from a fresh read of
+ * the kernel pool hashed with the clocks and pid (crypto.randomUUID() would
+ * repeat across clones for the 128 UUIDs Node batches), and only once the
+ * header binds, which is after the snapshot.
+ */
+export function lifeId(): string {
+  const holder = globalThis as { [LIFE]?: string };
+  holder[LIFE] ??= createHash("sha256").update(kernelBytes()).update(`${process.hrtime.bigint()}.${Date.now()}.${process.pid}`).digest("hex").slice(0, 32);
+  return holder[LIFE];
+}
+
 /**
  * The OTel config July resolves (agent/otel.ts), at startup and again after
- * each hosted secrets load. One exporter for traces and logs, present only
- * while the auth header is set; July reads the header from the env itself.
- * No metrics exporter: July would build a DELTA one Grafana rejects, so it
- * falls back to the global meter, which is lib/factory-metrics.ts's.
+ * each hosted secrets load. One exporter for traces, metrics, and logs,
+ * present only while the auth header is set; July reads the header from the
+ * env itself. Its metric exporters are cumulative, as Grafana Cloud needs,
+ * through the temporality env var agent/otel.ts defaults.
  * `service.name` is this agent's hosted slug (`-staging` on a staging
  * stage), so the six services stay apart; a local `serve --dir .` mounts all
  * six in one process, which July only allows with one config, so off managed
  * hosting (AGENT_SERVE_GENERATION unset) every agent says `software-factory`.
  * OTEL_SERVICE_NAME overrides. July builds its resource from this config only
- * and never reads OTEL_RESOURCE_ATTRIBUTES (otel/runtime.js:246-260), so the
+ * and never reads OTEL_RESOURCE_ATTRIBUTES (otel/runtime.js:269-284), so the
  * namespace and the stage are set here.
- * `logs` turns July's logs on (off by default, otel/config.js:194) with its
+ * `service.instance.id` is in the config only while the header is set, and is
+ * one per process life: July's resource has none, and cumulative series of
+ * several VMs of one slug that share one overwrite each other. It reaches the
+ * traces and logs resource too. July builds its providers from the first
+ * config with an exporter, so the id is stable from then on.
+ * `logs` turns July's logs on (off by default, otel/config.js:219-226) with its
  * prompt and tool content in log records and tool spans (truncated at 2048
  * characters); Grafana access is the only control.
  */
@@ -159,6 +175,7 @@ export function factoryOtelConfig(env: NodeJS.ProcessEnv): OtelConfig {
   const hosted = envValue(env, "AGENT_SERVE_GENERATION") !== "";
   const stage = factoryStage(env);
   const slug = stage === "staging" ? `${factorySlug}-staging` : factorySlug;
+  const exporting = exportConfigured(env);
   return {
     serviceName: envValue(env, "OTEL_SERVICE_NAME") || (hosted ? slug : FACTORY_SERVICE_NAMESPACE),
     resourceAttributes: {
@@ -166,8 +183,9 @@ export function factoryOtelConfig(env: NodeJS.ProcessEnv): OtelConfig {
       "deployment.environment": stage,
       "deployment.environment.name": stage,
       ...(hosted ? { "factory.slug": slug } : {}),
+      ...(exporting ? { "service.instance.id": lifeId() } : {}),
     },
-    exporters: exportConfigured(env) ? [{ url: otlpEndpoint(env), signals: ["traces", "logs"] }] : [],
+    exporters: exporting ? [{ url: otlpEndpoint(env) }] : [],
     logs: { userPrompts: true, toolContent: true },
   };
 }
@@ -286,24 +304,6 @@ function recordMetrics(input: { work: { span: FactorySpanName; kind: string }; o
   }
 }
 
-/**
- * Sets what runs when a delivery's factory work is over. lib/factory-metrics.ts
- * registers flushFactoryMetrics from installFactoryMeter: it imports this file,
- * so this file cannot import it back. Held on globalThis like the provider it
- * flushes, so a second copy of this module sees it.
- */
-export function registerFactoryFlush(flush: () => Promise<void>): void {
-  (globalThis as { [FLUSH]?: () => Promise<void> })[FLUSH] = flush;
-}
-
-async function flushFactoryWork(): Promise<void> {
-  try {
-    await (globalThis as { [FLUSH]?: () => Promise<void> })[FLUSH]?.();
-  } catch {
-    // Telemetry never changes a delivery.
-  }
-}
-
 function factoryTracer(): Tracer {
   return trace.getTracer(FACTORY_OTEL_SCOPE);
 }
@@ -320,26 +320,14 @@ function startOptions(attributes: Attributes): SpanOptions {
   return { attributes, root: true, ...(inbound !== undefined && trace.isSpanContextValid(inbound) ? { links: [{ context: inbound }] } : {}) };
 }
 
-/**
- * Runs `run` inside one factory span and returns its result unchanged; a
- * throw is recorded and rethrown. When the span ends and no factory span of
- * its delivery is still open, the factory's metrics are flushed (bounded,
- * never throws) before the returned promise settles. A `waitUntil` span is a
- * child of the delivery span that outlives it, so the delivery's span ends
- * with that child still open and the child's end flushes both counters; a
- * nested span ending inside its parent never flushes.
- */
+/** Runs `run` inside one factory span and returns its result unchanged; a throw is recorded and rethrown. */
 export async function traceFactory<R>(work: FactoryWork<R>, run: () => R | Promise<R>): Promise<R> {
   const kind = typeof work.kind === "string" && work.kind !== "" ? work.kind : "unknown";
   const metricKind = codeLike(work.kind) ?? "unknown";
   const ticket = typeof work.ticketKey === "string" ? work.ticketKey : undefined;
   const attributes = { "factory.delivery.kind": kind, ...(ticket === undefined ? {} : { [ATTRIBUTE.ticketKey]: ticket }) };
-  const parent = trace.getActiveSpan();
-  const flight: Flight = (parent === undefined ? undefined : flights.get(parent)) ?? { open: 0 };
   return factoryTracer().startActiveSpan(work.span, startOptions(attributes), async (span) => {
     factorySpans.add(span);
-    flight.open += 1;
-    flights.set(span, flight);
     const started = Date.now();
     const held: FactoryNote = ticket === undefined ? {} : { ticketKey: ticket };
     if (span.isRecording()) notes.set(span, held);
@@ -376,8 +364,6 @@ export async function traceFactory<R>(work: FactoryWork<R>, run: () => R | Promi
     } finally {
       notes.delete(span);
       span.end();
-      flight.open -= 1;
-      if (flight.open === 0) await flushFactoryWork();
     }
   });
 }

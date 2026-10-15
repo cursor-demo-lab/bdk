@@ -595,7 +595,7 @@ test("every histogram_quantile is filtered to >= 0, so a quiet slug (all-zero bu
     assert.equal(n, 1, `${uid} / ${panel.title}: one quantile per target`);
     assert.match(expr, /\(histogram_quantile\(.+\)\) >= 0/, `${uid} / ${panel.title}: quantile not filtered to >= 0`);
   }
-  assert.ok(quantiles >= 5, `found ${quantiles} quantiles`);
+  assert.ok(quantiles >= 4, `found ${quantiles} quantiles`);
 });
 
 test("range stats share the bar subquery and first-sample / interleaved reset cases exist", { skip }, () => {
@@ -865,7 +865,7 @@ test("round-6: raw log bodies, KV baseline filtered from the table, metric label
     assert.doesNotMatch(p.description, /allowlist drops|are dropped|pools phases/);
   }
   const hostedP95 = panels(overview).find((x) => x.title === "Hosted execution p95 by service (total)");
-  assert.match(hostedP95.targets[0].expr, /phase="total"/);
+  assert.match(hostedP95.targets[0].query, /name = "agent_sdk\.turn" \} \| quantile_over_time\(duration, \.95\) by \(resource\.service\.name\)$/);
   assert.doesNotMatch(readme, /still pools phases/);
 
   const logs = byUid(OPS);
@@ -3194,27 +3194,18 @@ test("stuck tickets: past the hop-watch deadline (Triaged 15 min, Approved 7 min
   assert.deepEqual(two.Since, [now - 30 * 60e3, now - 20 * 60e3], "each ticket's own latest change");
 });
 
-test("latency heatmap: #220 buckets to 30 min, a step-invariant zero scaffold, theme-invariant opacity, one panel per slug", () => {
-  const p = panel(OPS, "Exec duration: $exec_service");
+test("latency heatmap and hosted p95: Tempo agent_sdk.turn span durations (no 10 s cap), all six slugs on the p95", () => {
+  const p = panel(OPS, "Exec duration (Tempo, agent_sdk.turn)");
   assert.equal(p.type, "heatmap");
-  const [t] = p.targets;
-  assert.equal(t.format, "heatmap");
-  assert.match(t.expr, /le=~"100\|100\\\\\.0\|250\|250\\\\\.0\|.*\|1800000\|1\\\\\.8e\\\\\+06\|\\\\\+Inf"/,
-    "only the #220 bounds, in Mimir's spelling (1800000) and Prometheus 3's (1.8e+06)");
-  assert.doesNotMatch(t.expr, /increase\(|rate\(/, "a histogram part keeps the exact branch");
-  assert.match(t.expr, / or sum by \(le\) \(0 \* last_over_time\(.*\[\$__range\] @ end\(\)\)\)$/,
-    "the scaffold is one instant per bucket row, evaluated once at the range end, whatever the step");
-  assert.doesNotMatch(t.expr, /\$\{prom_res\}/, "like the p95 line above it, no $__to subquery cap");
-  assert.equal(p.options.calculate, false);
-  assert.deepEqual([p.options.color.mode, p.options.color.fill, p.options.color.scale, p.options.color.min],
-    ["opacity", "#1F78B4", "exponential", 0], "one blue on both themes; the square-root scale shows the sparse cells");
-  assert.equal(p.options.yAxis.unit, "ms");
-  assert.equal(p.repeat, "exec_service");
-  assert.equal(p.gridPos.w, 24, "Grafana splits a horizontal repeat by maxPerRow");
-  assert.equal(p.maxPerRow, 2, "two per row: four slugs make two full rows, not 3 + 1");
-  const v = byUid(OPS).templating.list.find((x) => x.name === "exec_service");
-  assert.equal(v.refresh, 1, "refresh on load: on time change Grafana 12.2 repeats the hidden All into one empty panel");
-  assert.match(v.definition, /agent_sdk_hosted_execution_duration_ms_milliseconds_bucket\{.*le=~"1800000\|1\\\\\.8e\\\\\+06"\}, service_name\)$/);
+  assert.equal(p.datasource.type, "tempo");
+  assert.match(p.targets[0].query, /name = "agent_sdk\.turn" \} \| histogram_over_time\(duration\)$/);
+  assert.equal(p.options.yAxis.unit, "s");
+  assert.ok(!byUid(OPS).templating.list.some((x) => x.name === "exec_service"), "the Prometheus bucket-layout variable is gone");
+  const p95 = panel(OPS, "Hosted execution p95 by service (total)");
+  assert.equal(p95.datasource.uid, "-- Mixed --");
+  assert.deepEqual(p95.targets.map((t) => t.datasource.type), ["tempo", "prometheus"], "Tempo p95 plus a Prometheus zero per slug");
+  const calcs = p95.transformations.filter((t) => t.id === "calculateField");
+  assert.equal(calcs.length, 6, "one max(p95, 0) per slug");
 });
 
 test("Cost per filing removed; Cost per merge stays Prometheus-only; Cost by ticket includes Unattributed", () => {
@@ -3440,8 +3431,8 @@ test("empty states follow one standard: what is missing, then what to do", () =>
 
 // The v2 / v4 panel builders whose dataclass arguments must be keyword-only (Copy, Size, Query, ...).
 const V2_FUNCTIONS = ["announce_selector", "announce_table", "background", "cost_per_ticket", "deliveries_by_event_type_table",
-  "deliveries_by_kind_table", "empty_state", "stage_age", "exec_bucket", "exec_service_var", "failed_or_noop_table", "heatmap_expr",
-  "latency_heatmap", "le_forms", "recent_tickets", "state_mappings", "stuck_count", "stuck_table", "stuck_transforms",
+  "deliveries_by_kind_table", "empty_state", "stage_age", "failed_or_noop_table", 
+  "latency_heatmap", "recent_tickets", "state_mappings", "stuck_count", "stuck_table", "stuck_transforms",
   // v4
   "business", "ops", "filed_stat", "prs_opened_stat", "merged_stat", "first_pass_stat", "lead_time_stat", "lead_pr_stat",
   "lead_merged_stat", "slack_approvals_stat", "spend_stat", "cost_per_merged_stat", "hours_saved_stat", "ticket_flow_bars",

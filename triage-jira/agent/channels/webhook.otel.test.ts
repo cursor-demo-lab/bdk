@@ -5,8 +5,7 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { AggregationTemporality, InMemoryMetricExporter, MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { BasicTracerProvider, InMemorySpanExporter, ParentBasedSampler, SimpleSpanProcessor, TraceIdRatioBasedSampler, type ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { DESK_TRIAGED_LINE } from "../lib/desk-triaged.js";
-import { DELIVERY_METRIC, registerFactoryFlush } from "../lib/factory-otel.js";
-import { flushFactoryMetrics } from "../lib/factory-metrics.js";
+import { DELIVERY_METRIC } from "../lib/factory-otel.js";
 import channel from "./webhook.js";
 
 // The Jira webhook's factory spans, on the global tracer provider July registers, through the real route handler, with the
@@ -143,42 +142,39 @@ test("an event the route ignores is a delivery span with outcome `ignored`", asy
   assert.equal(named("factory.delivery").attributes["factory.outcome"], "ignored");
 });
 
-test("the jira.triage_wake background counter is exported by the time the waitUntil promise settles, not before, with the periodic interval not elapsed", async () => {
-  const PROVIDER = Symbol.for("apj_factory.otel.provider");
-  const holder = globalThis as { [PROVIDER]?: MeterProvider };
+test("the jira.triage_wake background counter is recorded when the waitUntil promise settles, not before", async () => {
   const meterExporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
   const meterProvider = new MeterProvider({ readers: [new PeriodicExportingMetricReader({ exporter: meterExporter, exportIntervalMillis: 3_600_000, exportTimeoutMillis: 2_000 })] });
   metrics.disable();
   metrics.setGlobalMeterProvider(meterProvider);
-  holder[PROVIDER] = meterProvider;
-  registerFactoryFlush(() => flushFactoryMetrics());
   try {
-    const counted = () =>
-      meterExporter
+    const counted = async () => {
+      meterExporter.reset();
+      await meterProvider.forceFlush();
+      return meterExporter
         .getMetrics()
         .flatMap((resource) => resource.scopeMetrics)
         .flatMap((scope) => scope.metrics)
         .filter((metric) => metric.descriptor.name === DELIVERY_METRIC)
         .flatMap((metric) => metric.dataPoints.map((point) => [point.attributes["factory.span"], point.attributes["factory.delivery.kind"], point.attributes["factory.outcome"], point.value]))
         .sort();
+    };
 
     let release!: () => void;
     hold = new Promise<void>((resolve) => (release = resolve));
     const { response, background } = await deliver({ body: issueEvent(DESK_FILED) });
     assert.equal(response.status, 200);
     assert.equal(background.length, 1, "the already-triaged ticket runs no turn: the wake is the only background work");
-    assert.deepEqual(counted(), [], "the wake is still running when the handler returns, so nothing has been exported");
+    assert.deepEqual(await counted(), [["factory.delivery", "jira.webhook", "accepted", 1]], "the wake is still running when the handler returns, so only the delivery is counted");
 
     release();
     await Promise.all(background);
-    assert.deepEqual(counted(), [
+    assert.deepEqual(await counted(), [
       ["factory.background", "jira.triage_wake", "skipped", 1],
       ["factory.delivery", "jira.webhook", "accepted", 1],
     ]);
   } finally {
     hold = undefined;
-    registerFactoryFlush(async () => {});
-    delete holder[PROVIDER];
     metrics.disable();
     await meterProvider.shutdown();
   }

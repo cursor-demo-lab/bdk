@@ -1,13 +1,13 @@
 {
   "package": "@cursor/july",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "sandboxRepo": "cursor-demo-lab/marsbank",
   "init": [
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./triage-jira --template triage-jira --json",
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./security-reviewer --template security-reviewer --var repos=example-org/demo-repo --json",
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./pr-autofixer --template pr-autofixer --var repos=example-org/demo-repo --json",
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./factory-desk --json",
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./planner --json",
-    "npx -p @cursor/july@0.2.24 agent-sdk init ./factory-worker --json"
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./triage-jira --template triage-jira --json",
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./security-reviewer --template security-reviewer --var repos=example-org/demo-repo --json",
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./pr-autofixer --template pr-autofixer --var repos=example-org/demo-repo --json",
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./factory-desk --json",
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./planner --json",
+    "npx -p @cursor/july@0.2.25 agent-sdk init ./factory-worker --json"
   ]
 }

@@ -94,7 +94,7 @@ The thread-root stage emoji includes 🚫 when a plan is declined
 ## How it runs
 
 Hosted v2 (`architecture: "v2"`, `name: "factory-desk"`).
-`@cursor/july` `0.2.24` exactly
+`@cursor/july` `0.2.25` exactly
 (`factory-desk/package.json`).
 Every turn is local. Default model: `grok-4.6` with `effort=high`,
 `fast=true` (`factoryModel(process.env, LIGHT_MODEL)` in
@@ -140,15 +140,12 @@ Optional overrides, not in `hosting.secretNames` (set with
 
 ## Telemetry
 
-July builds the trace and log providers from the config
+July builds the trace, meter and log providers from the config
 `factory-desk/agent/otel.ts` hands it (`factory-desk/agent/lib/factory-otel.ts`).
-The factory registers one cumulative meter provider before July starts
-(`factory-desk/agent/lib/factory-metrics.ts`), because July's metric exporters
-are DELTA and Grafana Cloud rejects them, and sends its console lines through
-July's logger (`factory-desk/agent/lib/console-otel.ts`). July flushes its
-providers after each hosted delivery, at most 1 s. The meter provider is flushed
-at each turn's end (`agent/hooks/metrics-flush.ts`) and when a delivery's last
-open factory span ends (`traceFactory`), each bounded to 1 s. Export is off until
+`agent/otel.ts` defaults July's metric temporality to cumulative, because
+Grafana Cloud rejects July's default DELTA metrics. The factory sends its
+console lines through July's logger (`factory-desk/agent/lib/console-otel.ts`).
+July flushes its providers after each hosted delivery, at most 1 s. Export is off until
 `OTEL_EXPORTER_OTLP_HEADERS` is set. Shared by all six hosts. See the factory
 README OpenTelemetry section and
 [`docs/factory-deployment.md`](../docs/factory-deployment.md#11-opentelemetry-export-grafana-cloud).
@@ -159,8 +156,8 @@ Folder `factory-desk`, slug `factory-desk`. From
 `` after `npm ci` in this folder:
 
 ```bash
-npx -y -p @cursor/july@0.2.24 agent-sdk deploy --ref <full 40-char SHA> --dir factory-desk --slug factory-desk --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
-npx -y -p @cursor/july@0.2.24 agent-sdk logs --prod --slug factory-desk --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk deploy --ref <full 40-char SHA> --dir factory-desk --slug factory-desk --cursor-events-repo cursor-demo-lab/marsbank --team <CURSOR_TEAM_ID>
+npx -y -p @cursor/july@0.2.25 agent-sdk logs --prod --slug factory-desk --team <CURSOR_TEAM_ID>
 ```
 
 Order across the six hosts:
@@ -176,8 +173,8 @@ Jira rules `factory-desk` (status changes) and `factory-desk-comments`
 npm test          # agent/**/*.test.ts and evals/**/*.test.ts
 npm run check
 npm run validate
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --list
-npx -p @cursor/july@0.2.24 agent-sdk eval --dir . --tag smoke
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --list
+npx -p @cursor/july@0.2.25 agent-sdk eval --dir . --tag smoke
 npm run eval:jev-triage -- --runs 3
 ```
 
@@ -211,7 +208,7 @@ ticket once, then stops. A second silence asks for a planner redeploy or
 `retry KEY`.
 
 Hosted v2 fires `hop-watch` from the deploy manifest (July 0.2.13+). The
-deploy CLI and the runtime must both be 0.2.24.
+deploy CLI and the runtime must both be 0.2.25.
 
 ## Limits
 

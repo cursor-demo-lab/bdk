@@ -26,7 +26,7 @@ TEMPO = {"type": "tempo", "uid": "grafanacloud-traces"}
 JIRA_BROWSE = "https://example.atlassian.net/browse/"
 PRICES_URL = "https://cursor.com/docs/models-and-pricing"
 PRICES_DATE = "2026-10-03"
-JULY_COST_NOTE = ("July 0.2.20 dropped cursor.cost.usage; 0.2.24 still emits no USD cost metric and no model label "
+JULY_COST_NOTE = ("July 0.2.20 dropped cursor.cost.usage; 0.2.25 still emits no USD cost metric and no model label "
                   "on turn.completed. Spend here is always tokens × the price variables, not an invoice and not "
                   "July's old cost counter.")
 BUSINESS_ESTIMATE = ("Spend is a list-price estimate from token counts, not the invoice. Method on Factory ops.")
@@ -123,13 +123,12 @@ PLATFORM_PATHS = ".*/(health|healthz|ready|readyz|live|livez|guest-network|manif
 # window, or the max alone when it had none. It is correct over any window, overlapping or not.
 # Edge: a series whose last sample before the window is older than LOOKBACK is counted from zero
 # (over-counts); only a VM idle for longer than LOOKBACK and then active again would hit that.
-# Temporality is CUMULATIVE (the factory's own global MeterProvider in factory-metrics.ts, OTLPMetricExporter
-# temporalityPreference CUMULATIVE; July's DELTA exporters are never built: with no metrics exporter in the
-# defineOtel config July uses the global meter). If a host ever exports DELTA,
+# Temporality is CUMULATIVE (July's own meter provider, with OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+# defaulted to cumulative by agent/otel.ts, because Grafana Cloud rejects July's default DELTA). If a host ever exports DELTA,
 # its samples are increments: count them with sum_over_time(selector[window]) instead of counter_inc.
 # Aggregate only after counter_inc (sum by (service_name, ...) (inc(...))), never before.
-# The factory draws service.instance.id once per process life (factory-metrics.ts lifeId, at the first export with
-# the header set) and does not rebase, so a restored life's series starts at that life's own totals, the form
+# The factory draws service.instance.id once per process life (factory-otel.ts lifeId, once the header is set
+# and July builds its providers) and does not rebase, so a restored life's series starts at that life's own totals, the form
 # counter_inc assumes: no instrument records a value before the first request. A restore that carried nonzero totals
 # would be overstated by them, because the "or max alone" branch counts a series born inside the window from zero
 # (COUNT_CAVEAT).
@@ -2245,81 +2244,75 @@ def stuck_count():
 
 
 # ------------------------------------------------------------------------------------------------
-# v2: hosted execution heatmap
+# Hosted execution p95 from Tempo span durations
 # ------------------------------------------------------------------------------------------------
-# #220's boundaries (factory-otel.ts HOSTED_EXECUTION_DURATION_BUCKETS_MS).
-EXEC_BUCKETS_MS = [100, 250, 500, 1000, 2500, 5000, 10000, 15000, 20000, 30000, 60000, 120000, 180000,
-                   300000, 450000, 600000, 900000, 1800000]
+# July's agent_sdk.hosted_execution.duration_ms histogram has the OTel default buckets (top 10 s), so its p95
+# cannot read past 10 s. July 0.2.25 exports no span for the whole hosted execution (startHostedSpan covers only
+# admission.handler and the execute.* steps, hosted-delivery.js:491,701,750,776,1067), and the execution's work is the
+# agent_sdk.turn root span, so the p95 comes from those span durations in Tempo (TraceQL metrics). A zero per slug
+# from Prometheus is joined in so all six slugs stay listed; each slug's line is the max of the two (p95 or 0).
+TEMPO_METRICS_WINDOW = "24h"  # Tempo answers TraceQL metrics over at most 25 h
+EXEC_P95_TRACEQL = (f'{{ {TSEL} && name = "agent_sdk.turn" }} '
+                    '| quantile_over_time(duration, .95) by (resource.service.name)')
 
 
-def le_forms(bound: int):
-    """A bucket bound as an le regex in both spellings: Mimir's OTLP path writes 1800000, Prometheus 3
-    normalises le to a float (100.0, 1.8e+06). One backend uses one spelling, so nothing is counted twice."""
-    g = format(float(bound), "g")
-    prom3 = g if ("." in g or "e" in g) else g + ".0"
-    return "|".join(f.replace(".", "\\\\.").replace("+", "\\\\+") for f in (str(bound), prom3))
+def exec_p95_panel():
+    tempo = {"refId": "A", "datasource": TEMPO, "queryType": "traceql", "query": EXEC_P95_TRACEQL,
+             "metricsQueryType": "range", "step": "15m", "limit": 50, "tableType": "spans", "filters": []}
+    zeros = prom(PromQL(expr=all_services("absent(vector(1))")), ref="B", legend="{{service_name}}")
+    zeros["interval"] = "15m"
+    p = timeseries(Copy(title="Hosted execution p95 by service (total)",
+                        desc="p95 of the agent_sdk.turn root span's duration per slug over 15-minute windows, from Tempo "
+                        "(TraceQL quantile_over_time on span durations, so it reads past 10 s, unlike July's "
+                        "agent_sdk.hosted_execution.duration_ms histogram whose default buckets stop at 10 s). July 0.2.25 has no "
+                        "span for the whole hosted execution; the turn is the execution's work, so executions that run no turn "
+                        "(webhook-only deliveries) are not in it. Tempo computes the quantile on exponential (power-of-two) "
+                        "duration buckets, so a value can sit up to 2x above the slowest real span at low volume; the exemplar "
+                        "dots link to the actual traces. Always the last 24 h (Tempo's TraceQL metrics limit is 25 h). " + ALL_SERVICES_NOTE),
+                   ds=MIXED, targets=[tempo, zeros], unit="s", decimals=0, bars=False, interval="15m", calcs=[],
+                   keep_zeros=True,
+                   no_value=empty_state(EmptyState(missing="No hosted execution in range", action="Widen the time range")),
+                   points=True)
+    p["timeFrom"] = TEMPO_METRICS_WINDOW
+    p["transformations"] = [
+        {"id": "renameByRegex", "options": {"regex": ".*(factory-[a-z-]+).*", "renamePattern": "$1"}},
+        {"id": "joinByField", "options": {"mode": "outer"}},
+        *[{"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"reducer": "max", "include": [svc]},
+                                               "alias": f"p95 {svc}", "replaceFields": False}} for svc in SERVICES],
+        {"id": "filterFieldsByName", "options": {"include": {"pattern": "^(Time|time|p95 .*)$"}}},
+        {"id": "renameByRegex", "options": {"regex": "^p95 (.*)$", "renamePattern": "$1"}},
+    ]
+    return p
 
 
-EXEC_LE = "|".join(le_forms(b) for b in EXEC_BUCKETS_MS) + "|\\\\+Inf"
-EXEC_TOP_LE = le_forms(EXEC_BUCKETS_MS[-1])
-EXEC_SVC = 'service_name=~"${exec_service}"'
-
-
-def exec_bucket(le: str):
-    return f'{EXEC_DURATION}_bucket{{{NS}, {EXEC_SVC}, phase="total", le=~"{le}"}}'
-
-
-def heatmap_expr():
-    """Per bucket and le, only series on #220's layout, with every le row present at every step.
-
-    A series counts only where its 30 min sibling exists in the same bucket (old OTel-default series, top
-    edge 10 s, would put their +Inf in the > 30 min row). The zero scaffold makes every le frame the same
-    length: Grafana de-accumulates heatmap rows by index, not by time. `@ end()` evaluates the scaffold once for the
-    whole range instead of at every step. Like the p95 bars, no $__to cap."""
-    values = (f"sum by (le) ({inc(exec_bucket(EXEC_LE), window=PROM_AHEAD, cap=False)} and ignoring (le) "
-              f"max_over_time({exec_bucket(EXEC_TOP_LE)}{rng(PROM_AHEAD)}))")
-    scaffold = f"sum by (le) (0 * last_over_time({exec_bucket(EXEC_LE)}[$__range] @ end()))"
-    return f"{values} or {scaffold}"
-
-
-def exec_service_var():
-    query = (f'label_values({EXEC_DURATION}_bucket{{{NS}, {SVC}, le=~"{EXEC_TOP_LE}"}}, service_name)')
-    return {"name": "exec_service", "label": "Slugs with hosted executions", "type": "query", "datasource": PROM,
-            "query": {"qryType": 1, "query": query, "refId": "PrometheusVariableQueryEditor-VariableQuery"},
-            "definition": query, "refresh": 1, "regex": "", "sort": 1, "hide": 2, "includeAll": True, "multi": True,
-            "allValue": ".*", "options": [], "current": {"text": ["All"], "value": ["$__all"]},
-            "description": "Selected slugs that report hosted executions on #220's buckets (the heatmap repeats "
-                           "over these). Refreshed on dashboard load: with refresh on time change, Grafana Cloud (12.2+; verified on 13.3.0) "
-                           "repeats the hidden default (All) into one empty panel inside the collapsed Latency row."}
+# ------------------------------------------------------------------------------------------------
+# Hosted execution heatmap (Tempo)
+# ------------------------------------------------------------------------------------------------
+# Same source as the p95 line: agent_sdk.turn root span durations from Tempo, whose histogram_over_time buckets are
+# powers of two with no top cap, so a 10-minute turn lands in its own row instead of the metric's +Inf.
+EXEC_HEATMAP_TRACEQL = f'{{ {TSEL} && name = "agent_sdk.turn" }} | histogram_over_time(duration)'
 
 
 def latency_heatmap():
-    target = prom(PromQL(expr=heatmap_expr()), legend="{{le}}")
-    target["format"] = "heatmap"
+    target = {"refId": "A", "datasource": TEMPO, "queryType": "traceql", "query": EXEC_HEATMAP_TRACEQL,
+              "metricsQueryType": "range", "step": "15m", "limit": 50, "tableType": "spans", "filters": []}
     p = base("heatmap", copy=Copy(
-        title="Exec duration: $exec_service",
-        desc="How long July's hosted executions took (agent_sdk.hosted_execution.duration_ms, phase=\"total\"): one column "
-        "per bucket, one row per histogram bucket (100 ms to 30 min, #220); the more executions, the more solid the blue, on "
-        "a fixed scale from 0. "
-        "One panel per slug that runs hosted executions. Only VMs on #220's buckets are counted: a VM still on the old "
-        "OTel default buckets (top edge 10 s) is left out until it is redeployed, because its slow runs would land in "
-        "the > 30 min row. Every row is padded with zeros over the range so the cells sit at the right times. Counted "
-        "per bucket with counter_inc and the same one-step look-ahead as the p95 line above. " + TWO_WRITERS),
-        ds=PROM, targets=[target])
+        title="Exec duration (Tempo, agent_sdk.turn)",
+        desc="How long the hosted executions' turns took: agent_sdk.turn root span durations from Tempo, one column per "
+        "15 minutes, one row per power-of-two duration bucket (no 10 s cap, unlike July's hosted-execution histogram); "
+        "the more turns, the more solid the blue. Selected slugs together. Always the last 24 h (Tempo's TraceQL "
+        "metrics limit is 25 h)."), ds=TEMPO, targets=[target])
+    p["timeFrom"] = TEMPO_METRICS_WINDOW
     p["fieldConfig"]["defaults"]["custom"] = {"scaleDistribution": {"type": "linear"},
                                               "hideFrom": {"legend": False, "tooltip": False, "viz": False}}
-    p["fieldConfig"]["defaults"]["noValue"] = empty_state(EmptyState(missing="No hosted executions in range", action="Widen the time range or pick All services"))
-    p["options"] = {"calculate": False, "cellGap": 1, "rowsFrame": {"layout": "le"},
-                    # Opacity of one blue reads the same way in both themes (more = more solid); Grafana flips a
-                    # colour scheme such as Viridis in the light theme.
+    p["fieldConfig"]["defaults"]["noValue"] = empty_state(EmptyState(missing="No turns in the last 24 h", action="Check that Tempo receives the slugs' traces"))
+    p["options"] = {"calculate": False, "cellGap": 1, "rowsFrame": {"layout": "auto"},
                     "color": {"mode": "opacity", "fill": "#1F78B4", "scale": "exponential", "exponent": 0.5,
                               "steps": 64, "reverse": False, "min": 0},
-                    "filterValues": {"le": 1e-9}, "yAxis": {"axisPlacement": "left", "unit": "ms", "reverse": False, "decimals": 0},
+                    "filterValues": {"le": 1e-9}, "yAxis": {"axisPlacement": "left", "unit": "s", "reverse": False, "decimals": 0},
                     "cellValues": {"unit": "none", "decimals": 0}, "showValue": "never",
                     "tooltip": {"mode": "single", "yHistogram": True, "showColorScale": True},
                     "legend": {"show": True}, "exemplars": {"color": "rgba(255,0,255,0.7)"}}
-    p["interval"] = "$bucket"
-    p["repeat"], p["repeatDirection"], p["maxPerRow"] = "exec_service", "h", 2
     return p
 
 
@@ -2501,7 +2494,7 @@ def recent_tickets():
 # ------------------------------------------------------------------------------------------------
 # v2: cost share and cost per ticket
 # ------------------------------------------------------------------------------------------------
-# No rebase: the factory draws one service.instance.id per process life (factory-metrics.ts); no query compensates for a restore that carries state.
+# No rebase: the factory draws one service.instance.id per process life (factory-otel.ts lifeId); no query compensates for a restore that carries state.
 RESTART_OVERCOUNT = ("Counter-based figures can read high after a host changes its service instance id if the restore "
                      "carried nonzero totals: the new series starts at them, and they are counted again. The factory "
                      "draws one id per process life and does not rebase; nothing records a value before the first "
@@ -3584,7 +3577,7 @@ def estimate_text_short():
 def estimate_text():
     """Full estimate methodology — shown on Factory ops."""
     return text(Copy(title="Estimate, not billing", desc="How the cost estimate is made, and what it leaves out."),
-                content="July 0.2.20 dropped `cursor.cost.usage`; 0.2.24 still emits no USD cost metric and no "
+                content="July 0.2.20 dropped `cursor.cost.usage`; 0.2.25 still emits no USD cost metric and no "
                 "`cursor.model.name` / `agent_sdk.cost_usd` on new turns. Cost here is "
                 f"tokens × the hidden price variables (USD per 1M tokens, [Cursor list prices]({PRICES_URL}), retrieved "
                 f"{PRICES_DATE}), by design, not a workaround for a late estimate. Defaults are Grok 4.6 Fast, the desk's and triage's model: $4 input, $1 cache read, $12 output; "
@@ -3635,7 +3628,7 @@ def ops():
                            options=[("Hide tag lines", TAG_LINE), ("Show everything", "^$")], hide=2)
     search = textbox_var(VarSpec(name="search", label="Find", default="", desc="Case-insensitive regex on the log body in All factory logs (Debug: volume and raw logs). "
                                  "Hidden from the variable bar so it stays one line at 1280 with Service, Ticket and Bucket; set var-search=<regex> in the URL."), hide=2)
-    v = [service_var(), ticket_var(), bucket_var(), search, tag_lines, prom_res_var(), smooth_var()] + price_vars(hide=2) + [exec_service_var()]
+    v = [service_var(), ticket_var(), bucket_var(), search, tag_lines, prom_res_var(), smooth_var()] + price_vars(hide=2)
     d = Dashboard(DashMeta(uid=OPS, title="Factory ops",
                            description="Is the Software Factory healthy now, and what is each ticket doing? Live health, "
                            "in-range KPIs, tickets in flight, change reviews, and failures that need action. Detail "
@@ -3904,13 +3897,7 @@ def ops():
                      ds=PROM, targets=[prom(PromQL(expr=as_seconds(quantile(0.95, histogram=HTTP_DURATION, window=PROM_AHEAD, where=(f'url_path!~"{PLATFORM_PATHS}"',), by="service_name"))),
                                  legend="{{service_name}}")], unit="suffix: s", bars=False, interval="15m", calcs=[],
                      legend=latency_legend, points=True), size=Size(w=12, h=9))
-    d.add(timeseries(Copy(title="Hosted execution p95 by service (total)", desc="p95 of July's agent_sdk.hosted_execution.duration_ms over 15-minute windows, "
-                     "phase=\"total\" only (the whole execution; the other four phases are its parts). "
-                     "The metric also keeps channel_kind, delivery_surface and outcome. " + QUANTILE_NOTE),
-                     ds=PROM, targets=[prom(PromQL(expr=as_seconds(quantile(0.95, histogram=EXEC_DURATION, window=PROM_AHEAD, where=('phase="total"',), by="service_name"))), legend="{{service_name}}")],
-                     unit="suffix: s", decimals=0, bars=False, interval="15m", calcs=[], legend=latency_legend,
-                     no_value=empty_state(EmptyState(missing="No hosted execution in range", action="Widen the time range")),
-                     points=True), size=Size(w=12, h=9))
+    d.add(exec_p95_panel(), size=Size(w=12, h=9))
     for p95 in d.current_row["panels"][-3:]:
         p95["fieldConfig"]["defaults"]["custom"]["lineWidth"] = 2
     d.add(latency_heatmap(), size=Size(w=24, h=8))
